@@ -20,9 +20,10 @@ raylib_subproject = cmake.subproject('raylib', options: raylib_opts)
 raylib_dep = raylib_subproject.dependency('raylib')
 
 m = cc.find_library('m')
-
+subdir('src')
 executable('StickfigureAnimator',
-           'main.c',
+           sources,
            include_directories: ['externals'],
+           c_args: ['-DRESOURCE_PATH="' + meson.current_source_dir() / '"'],
            dependencies: [m, raylib_dep],
            install : true)

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "clay/clay.h"
 #include "raymath.h"
 #include "stdint.h"
 #include "string.h"
@@ -116,10 +117,109 @@ static inline Clay_Dimensions Raylib_MeasureText(Clay_StringSlice text, Clay_Tex
     return textSize;
 }
 
+
+typedef struct {
+    Shader sdfShader;
+    Shader roundedRectShader;
+    struct {
+        int rectSize;
+        int rectColor;
+        int rectRadii;
+        int rectPos;
+    } roundedRectShaderLocations;
+} ClayRaylibContext;
+
+ClayRaylibContext _clay_raylib_context;
+
+void Clay_Raylib_RenderRect(const Clay_BoundingBox boundingBox, const Clay_CornerRadius cornerRadius, const Clay_Color backgroundColor) {
+    Vector2 position = { boundingBox.x, GetRenderHeight() - (boundingBox.y + boundingBox.height)};
+    Vector2 size = { boundingBox.width, boundingBox.height};
+    SetShaderValue(_clay_raylib_context.roundedRectShader, _clay_raylib_context.roundedRectShaderLocations.rectPos, &position, SHADER_UNIFORM_VEC2);
+    SetShaderValue(_clay_raylib_context.roundedRectShader, _clay_raylib_context.roundedRectShaderLocations.rectSize, &size, SHADER_UNIFORM_VEC2);
+    SetShaderValue(_clay_raylib_context.roundedRectShader, _clay_raylib_context.roundedRectShaderLocations.rectColor, (float[]){backgroundColor.r / 255.0, backgroundColor.g / 255.0, backgroundColor.b / 255.0, backgroundColor.a / 255.0}, SHADER_UNIFORM_VEC4);
+    SetShaderValue(_clay_raylib_context.roundedRectShader, _clay_raylib_context.roundedRectShaderLocations.rectRadii, &cornerRadius, SHADER_UNIFORM_VEC4);
+    BeginShaderMode(_clay_raylib_context.roundedRectShader);
+    /* DrawRectangleRec((Rectangle){ boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height}, CLAY_COLOR_TO_RAYLIB_COLOR(backgroundColor)); */
+    DrawRectangleRec((Rectangle){ 0, 0, GetRenderWidth(), GetRenderHeight()}, CLAY_COLOR_TO_RAYLIB_COLOR(backgroundColor));
+    EndShaderMode();
+}
+
+typedef enum {
+    CLAY_RAYLIB_SHADER_SDF,
+    CLAY_RAYLIB_SHADER_ROUNDED_RECT,
+    CLAY_RAYLIB_SHADER_COUNT,
+} ClayRaylibShaderNames_e;
+
+const char* _clay_raylib_shader_sources[CLAY_RAYLIB_SHADER_COUNT] = {
+    "#version 330                                                                                               \n\
+                                                                                                                \n\
+// Input vertex attributes (from vertex shader)                                                                 \n\
+in vec2 fragTexCoord;                                                                                           \n\
+in vec4 fragColor;                                                                                              \n\
+                                                                                                                \n\
+// Input uniform values                                                                                         \n\
+uniform sampler2D texture0;                                                                                     \n\
+uniform vec4 colDiffuse;                                                                                        \n\
+                                                                                                                \n\
+// Output fragment color                                                                                        \n\
+out vec4 finalColor;                                                                                            \n\
+                                                                                                                \n\
+// NOTE: Add your custom variables here                                                                         \n\
+                                                                                                                \n\
+void main()                                                                                                     \n\
+{                                                                                                               \n\
+    // Texel color fetching from texture sampler                                                                \n\
+    // NOTE: Calculate alpha using signed distance field (SDF)                                                  \n\
+    float distanceFromOutline = texture(texture0, fragTexCoord).a - 0.5;                                        \n\
+    float distanceChangePerFragment = length(vec2(dFdx(distanceFromOutline), dFdy(distanceFromOutline)));       \n\
+    float alpha = smoothstep(-distanceChangePerFragment, distanceChangePerFragment, distanceFromOutline);       \n\
+                                                                                                                \n\
+    // Calculate final fragment color                                                                           \n\
+    //finalColor = vec4(fragColor.rgb, fragColor.a*alpha);                                                        \n\
+    finalColor = vec4(fragColor.rgb, 1.0);                                                        \n\
+}                                                                                                               \n\
+",
+"#version 330						                                                                            \n\
+uniform vec2 rectSize;						                                                                    \n\
+uniform vec4 rectColor;						                                                                    \n\
+uniform vec4 rectRadii;						                                                                    \n\
+uniform vec2 rectPos;						                                                                    \n\
+out vec4 fragColor;						                                                                        \n\
+						                                                                                        \n\
+float DistRoundedRect(vec2 pos, vec2 ext, vec4 cr) {						                                    \n\
+  float r = pos.x > 0.0 ? (pos.y > 0.0 ? cr.y : cr.z) : (pos.y > 0.0 ? cr.x : cr.w);						    \n\
+  float maxAllowed = min(ext.x, ext.y) * 0.5;						                                            \n\
+  r = min(r, maxAllowed);						                                                                \n\
+  vec2 d = abs(pos) + vec2(r) - ext * 0.5;						                                            \n\
+  return length(max(d,0.0)) + min(max(d.x,d.y),0.0) - r;						                            \n\
+}						                                                                                        \n\
+void main() {						                                                                            \n\
+    vec2 pixelPos = gl_FragCoord.xy - (rectPos + rectSize * 0.5);						                                            \n\
+    float dist = DistRoundedRect(pixelPos, rectSize, rectRadii);						                        \n\
+    float mask = 1 - step(0.0, dist);						                                                \n\
+    //fragColor = vec4(rectColor.rgb, rectColor.a * mask);						                                \n\
+    fragColor = vec4(rectColor.rgb, rectColor.a * mask);						                                \n\
+}"
+};
+
 void Clay_Raylib_Initialize(int width, int height, const char *title, unsigned int flags) {
     SetConfigFlags(flags);
     InitWindow(width, height, title);
+
+    _clay_raylib_context.roundedRectShader = LoadShaderFromMemory(NULL, _clay_raylib_shader_sources[CLAY_RAYLIB_SHADER_ROUNDED_RECT]);
+    if(!_clay_raylib_context.roundedRectShader.id) {
+        fprintf(stderr, "Failed to load rounded rect shader\n");
+        exit(EXIT_FAILURE);
+    }
+    _clay_raylib_context.roundedRectShaderLocations.rectSize = GetShaderLocation(_clay_raylib_context.roundedRectShader, "rectSize");
+    _clay_raylib_context.roundedRectShaderLocations.rectColor = GetShaderLocation(_clay_raylib_context.roundedRectShader, "rectColor");
+    _clay_raylib_context.roundedRectShaderLocations.rectRadii = GetShaderLocation(_clay_raylib_context.roundedRectShader, "rectRadii");
+    _clay_raylib_context.roundedRectShaderLocations.rectPos = GetShaderLocation(_clay_raylib_context.roundedRectShader, "rectPos");
 //    EnableEventWaiting();
+}
+
+void Clay_Raylib_Close() {
+    UnloadShader(_clay_raylib_context.roundedRectShader);
 }
 
 void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
@@ -134,10 +234,11 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
                 // Raylib uses standard C strings so isn't compatible with cheap slices, we need to clone the string to append null terminator
                 Clay_TextRenderData *textData = &renderCommand->renderData.text;
                 char *cloned = (char *)malloc(textData->stringContents.length + 1);
-                memcpy(cloned, textData->stringContents.chars, textData->stringContents.length);
-                cloned[textData->stringContents.length] = '\0';
+                strncpy(cloned, textData->stringContents.chars, textData->stringContents.length + 1);
                 Font fontToUse = fonts[textData->fontId];
+                /* BeginShaderMode(_clay_raylib_context.sdfShader); */
                 DrawTextEx(fontToUse, cloned, (Vector2){boundingBox.x, boundingBox.y}, (float)textData->fontSize, (float)textData->letterSpacing, CLAY_COLOR_TO_RAYLIB_COLOR(textData->textColor));
+                /* EndShaderMode(); */
                 free(cloned);
                 break;
             }
@@ -165,12 +266,7 @@ void Clay_Raylib_Render(Clay_RenderCommandArray renderCommands, Font* fonts)
             }
             case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: {
                 Clay_RectangleRenderData *config = &renderCommand->renderData.rectangle;
-                if (config->cornerRadius.topLeft > 0) {
-                    float radius = (config->cornerRadius.topLeft * 2) / (float)((boundingBox.width > boundingBox.height) ? boundingBox.height : boundingBox.width);
-                    DrawRectangleRounded((Rectangle) { boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height }, radius, 8, CLAY_COLOR_TO_RAYLIB_COLOR(config->backgroundColor));
-                } else {
-                    DrawRectangle(boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height, CLAY_COLOR_TO_RAYLIB_COLOR(config->backgroundColor));
-                }
+                    Clay_Raylib_RenderRect(boundingBox, config->cornerRadius, config->backgroundColor);
                 break;
             }
             case CLAY_RENDER_COMMAND_TYPE_BORDER: {
