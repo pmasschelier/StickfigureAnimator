@@ -1,7 +1,11 @@
 #version 460
 
-layout (location = 0) in vec4 v_color;
-layout (location = 0) out vec4 FragColor;
+uniform vec2 start;
+uniform vec2 end;
+uniform float thickness;
+uniform vec4 color;
+
+out vec4 FragColor;
 
 float sdSegment( in vec2 p, in vec2 a, in vec2 b )
 {
@@ -12,5 +16,7 @@ float sdSegment( in vec2 p, in vec2 a, in vec2 b )
 
 void main()
 {
-    FragColor = v_color;
+    float d = sdSegment(gl_FragCoord.xy, start, end);
+    float alpha = 1 - step(thickness, d); 
+    FragColor = vec4(color.rgb, alpha);
 }

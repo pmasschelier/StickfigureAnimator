@@ -19,10 +19,13 @@ raylib_subproject = cmake.subproject('raylib', options: raylib_opts)
 raylib_dep = raylib_subproject.dependency('raylib')
 
 m = cc.find_library('m')
+glew = dependency('glew')
+opengl = dependency('opengl')
+
 subdir('src')
 executable('StickfigureAnimator',
            sources,
            include_directories: ['externals'],
            c_args: ['-DRESOURCE_PATH="' + meson.current_source_dir() / '"'],
-           dependencies: [m, raylib_dep],
+           dependencies: [m, raylib_dep, glew, opengl],
            install : true)

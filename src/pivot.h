@@ -2,6 +2,8 @@
 #define PIVOT_H
 
 #include "raylib.h"
+#include "src/arena.h"
+#include "src/array.h"
 
 typedef enum {
     STICKFIGURE_RECT,
@@ -21,12 +23,17 @@ typedef struct {
     Vector2 *handles;
 } StickfigurePart;
 
+DEFINE_ARRAY_TYPE(StickfigurePart)
+DEFINE_ARRAY_TYPE(StickfigureJoint)
+
 typedef struct {
-    unsigned stick_count;
-    unsigned joint_count;
-    StickfigurePart *sticks;
-    StickfigureJoint *joints;
+    StickfigurePart_array_t sticks;
+    StickfigureJoint_array_t joints;
 } Stickfigure;
+
+DEFINE_ARRAY_TYPE(Stickfigure)
+
+Stickfigure* CreateStickfigureFromPart(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot);
 
 void InitStickfigureRenderer();
 void DeinitStickfigureRenderer();

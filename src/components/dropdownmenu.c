@@ -1,23 +1,20 @@
+#include "src/arena.h"
 #include "utils.h"
+#include <stddef.h>
 #include <stdint.h>
 
 extern uint16_t selected_font;
-
-typedef struct {
-    void (*onClick)(void *);
-    void *clickData;
-} DropDownMenuItemData;
 
 static void HandleDropDownMenuItem(
     Clay_ElementId elementId,
     Clay_PointerData pointerInfo,
     intptr_t userData
 ) {
-    DropDownMenuItemData *data = (void *)userData;
+    Callback_t *data = (void *)userData;
     switch (pointerInfo.state) {
     case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
-        if (data->onClick)
-            data->onClick(data->clickData);
+        if (data->fn)
+            data->fn(data->params);
         break;
     default:
         break;
@@ -27,8 +24,7 @@ static void HandleDropDownMenuItem(
 void RenderDropdownMenuItem(
     Clay_String text,
     ItemData data,
-    void (*onClick)(void *),
-    void *clickData,
+    Callback_t onClick,
     Arena *arena
 ) {
     Clay_CornerRadius cornerRadius = {};
@@ -45,19 +41,18 @@ void RenderDropdownMenuItem(
         cornerRadius.bottomRight = 4;
     }
 
+    Callback_t* onHoverData = arena_allocate(arena, 1, sizeof(Callback_t));
+    *onHoverData = onClick;
+
     CLAY(
         { .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } } }
     ) {
-        if (onClick) {
+        if (onClick.fn) {
             if (Clay_Hovered()) {
                 background = (Clay_Color){ 0xFF, 0xFF, 0xFF, 0x33 };
                 clickable_hovered = true;
             }
-            DropDownMenuItemData *data =
-                arena_allocate(arena, 1, sizeof(DropDownMenuItemData));
-            data->onClick = onClick;
-            data->clickData = clickData;
-            Clay_OnHover(HandleDropDownMenuItem, (intptr_t)data);
+            Clay_OnHover(HandleDropDownMenuItem, (intptr_t)onHoverData);
         }
         CLAY( {
             .layout = {

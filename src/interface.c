@@ -209,6 +209,7 @@ typedef struct {
     EditMode *mode;
     EditMode requested;
 } HandleChangeModeData;
+
 void HandleChangeMode(void *data) {
     HandleChangeModeData *modedata = data;
     *modedata->mode = modedata->requested;
@@ -217,40 +218,38 @@ void HandleChangeMode(void *data) {
 
 ButtonData editButton = { .onMouseDown = EditButtonMouseDownHandler };
 
-void RenderFileMenu(void *priv) {
+void RenderFileMenu(void *priv, Callback_t onMouseUp) {
     Arena *arena = priv;
     RenderDropdownMenuItem(
-        CLAY_STRING("New"), (ItemData){ 3, 0 }, NULL, NULL, NULL
+        CLAY_STRING("New"), (ItemData){ 3, 0 }, (Callback_t){}, NULL
     );
     RenderDropdownMenuItem(
-        CLAY_STRING("Open"), (ItemData){ 3, 1 }, NULL, NULL, NULL
+        CLAY_STRING("Open"), (ItemData){ 3, 1 }, (Callback_t){}, NULL
     );
     RenderDropdownMenuItem(
-        CLAY_STRING("Close"), (ItemData){ 3, 2 }, NULL, NULL, NULL
+        CLAY_STRING("Close"), (ItemData){ 3, 2 }, (Callback_t){}, NULL
     );
 }
 
-void RenderCreateMenu(void *priv) {
+void RenderCreateMenu(void *priv, Callback_t onMouseUp) {
     MainLayoutData *data = priv;
     HandleChangeModeData *modes =
         arena_allocate(&data->arena, 2, sizeof(HandleChangeModeData));
     for (int i = 0; i < 2; i++) {
-        modes[i].mode = &data->mode;
+        modes[i].mode = &data->rendererData.mode;
     }
-    modes[0].requested = CREATE_STICK;
+    modes[0].requested = BEGIN_CREATE_STICK;
     RenderDropdownMenuItem(
         CLAY_STRING("Stick"),
         (ItemData){ 2, 0 },
-        HandleChangeMode,
-        &modes[0],
+        (Callback_t){ HandleChangeMode, &modes[0]},
         &data->arena
     );
-    modes[1].requested = CREATE_CIRCLE;
+    modes[1].requested = BEGIN_CREATE_CIRCLE;
     RenderDropdownMenuItem(
         CLAY_STRING("Circle"),
         (ItemData){ 2, 1 },
-        HandleChangeMode,
-        &modes[1],
+        (Callback_t){ HandleChangeMode, &modes[1]},
         &data->arena
     );
 }
@@ -387,7 +386,7 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
                       .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
                       .padding = CLAY_PADDING_ALL(16) } }
             ) {
-                RenderCanvas(CLAY_ID("canvas"));
+                RenderCanvas(CLAY_ID("canvas"), CanvasEventHandler, &data->rendererData);
             }
         }
     }

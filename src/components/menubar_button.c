@@ -1,15 +1,19 @@
-#include "utils.h"
+#include "src/components/utils.h"
+#include "src/interface.h"
 #include <stdint.h>
-#include <stdio.h>
 
 extern uint16_t selected_font;
+
+static void CloseMenu(bool* open) {
+    *open = false;
+}
 
 void RenderMenuBarButton(
     Clay_String title,
     Clay_ElementId buttonId,
     Clay_ElementId menuId,
     bool *menuVisible,
-    void RenderMenu(void *),
+    void RenderMenu(void *, Callback_t onMouseReleased),
     void *priv
 ) {
     CLAY(
@@ -28,10 +32,9 @@ void RenderMenuBarButton(
         );
         if (Clay_GetPointerState().state
             == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-            printf("Pointer pressed\n");
             if (Clay_PointerOver(buttonId))
                 *menuVisible = !(*menuVisible);
-            else
+            else if(!Clay_PointerOver(menuId))
                 *menuVisible = false;
         }
 
@@ -61,7 +64,7 @@ void RenderMenuBarButton(
                     .backgroundColor = {40, 40, 40, 255 },
                     .cornerRadius = {0.f, 8.f, 8.f, 8.f},
                 }) {
-                    RenderMenu(priv);
+                    RenderMenu(priv, (Callback_t) {(CallbackFn)CloseMenu, menuVisible});
                 }
             }
         }
