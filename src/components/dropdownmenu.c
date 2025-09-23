@@ -6,7 +6,7 @@
 extern uint16_t selected_font;
 
 static void HandleDropDownMenuItem(
-    Clay_ElementId elementId,
+    [[maybe_unused]] Clay_ElementId elementId,
     Clay_PointerData pointerInfo,
     intptr_t userData
 ) {

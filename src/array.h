@@ -15,7 +15,7 @@
         type* data;                                                         \
     } type ## _array_t;                                                     \
                                                                             \
-    static type* array_append_ ## type(type ## _array_t* array) {           \
+    static inline type* array_append_ ## type(type ## _array_t* array) {    \
         if(array->capacity == 0) {                                          \
             array->data = malloc(ARRAY_MIN_CAPACITY * sizeof(type));        \
             array->capacity = ARRAY_MIN_CAPACITY;                           \

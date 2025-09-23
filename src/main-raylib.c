@@ -20,7 +20,7 @@ bool clickable_hovered = false;
 uint16_t selected_font = 0;
 Font fonts[2];
 
-void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
+void CanvasEventHandler([[maybe_unused]] Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
     RendererData* data = (void*)userData;
     Vector2 mousePos = { pointerInfo.position.x, pointerInfo.position.y };
     switch (pointerInfo.state) {

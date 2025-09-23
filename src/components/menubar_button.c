@@ -1,5 +1,4 @@
 #include "src/components/utils.h"
-#include "src/interface.h"
 #include <stdint.h>
 
 extern uint16_t selected_font;

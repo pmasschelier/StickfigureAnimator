@@ -2,7 +2,6 @@
 #define COMPONENTS_UTILS_H
 
 #include "clay/clay.h"
-#include "../arena.h"
 
 extern bool clickable_hovered;
 

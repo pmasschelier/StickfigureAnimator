@@ -10,11 +10,11 @@ typedef struct {
   char *memory;
 } Arena;
 
-static Arena arena_init(size_t capacity, void *memory) {
+static inline Arena arena_init(size_t capacity, void *memory) {
   return (Arena){0, capacity, (char *)memory};
 }
 
-static void *arena_allocate(Arena *arena, unsigned count, size_t size) {
+static inline void *arena_allocate(Arena *arena, unsigned count, size_t size) {
   const size_t totalSizeBytes = count * size;
   uintptr_t nextAllocOffset =
       arena->nextAllocation + (64 - (arena->nextAllocation % 64));
@@ -26,6 +26,6 @@ static void *arena_allocate(Arena *arena, unsigned count, size_t size) {
   return ret;
 }
 
-static void arena_reset(Arena *arena) { arena->nextAllocation = 0; }
+static inline void arena_reset(Arena *arena) { arena->nextAllocation = 0; }
 
 #endif // !ARENA_H

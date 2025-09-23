@@ -1,6 +1,8 @@
 #ifndef COMPONENTS_H
 #define COMPONENTS_H
+
 #include "utils.h"
+#include "../arena.h"
 
 
 void RenderCanvas(Clay_ElementId id, OnHoverFn onHoverFunction, void* hoverFnData);

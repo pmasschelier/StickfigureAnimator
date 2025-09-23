@@ -13,13 +13,3 @@ Stickfigure* CreateStickfigureFromPart(Stickfigure_array_t* array, StickfigurePa
     return sf;
 }
 
-void InitStickfigureRenderer() {
-
-}
-
-void DeinitStickfigureRenderer() {
-
-}
-
-void RenderStickfigurePart(const StickfigurePart* part) {}
-

@@ -2,7 +2,6 @@
 #define INTERFACE_H
 
 #include "arena.h"
-#include "array.h"
 #include "clay/clay.h"
 #include "raylib.h"
 #include "src/pivot.h"
