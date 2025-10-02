@@ -3,9 +3,11 @@
 
 #include "raylib.h"
 #include "src/pivot.h"
+#include "rlgl.h"
 
 typedef struct {
-  Shader stickfigureShader;
+    Shader stickfigureShader;
+    RenderTexture2D rendertexture;
 } RendererState;
 
 typedef enum {

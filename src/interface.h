@@ -18,6 +18,8 @@ typedef struct {
     Stickfigure_array_t stickfigure;
     Vector2* currentHandle;
     EditMode mode;
+    Vector2 offset;
+    float zoom;
 } RendererData;
 
 typedef struct {

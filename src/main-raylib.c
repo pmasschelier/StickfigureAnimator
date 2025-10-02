@@ -1,8 +1,10 @@
 #include "interface.h"
 #include "raylib.h"
+#include "rlgl.h"
 #include "src/components/utils.h"
 #include "src/pivot.h"
 #include "src/renderer/renderer.h"
+#include <stdio.h>
 #include <stdlib.h>
 #define CLAY_IMPLEMENTATION
 #include "clay/clay.h"
@@ -20,15 +22,30 @@ bool clickable_hovered = false;
 uint16_t selected_font = 0;
 Font fonts[2];
 
-void CanvasEventHandler([[maybe_unused]] Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
+void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
     RendererData* data = (void*)userData;
-    Vector2 mousePos = { pointerInfo.position.x, pointerInfo.position.y };
+    Clay_ElementData elementData = Clay_GetElementData(elementId);
+    /* Rectangle defaultViewport = {} */
+    Vector2 worldPos = {
+        pointerInfo.position.x - elementData.boundingBox.x,
+        elementData.boundingBox.height - (pointerInfo.position.y - elementData.boundingBox.y)
+    };
+    /* float camera[9] = { */
+    /*     1.f, 0.f, 0.0f, */
+    /*     0.f, -1.f,  */
+    /* }; */
+    /* Vector2 halfCanvas = { elementData.boundingBox.width / 2.f, elementData.boundingBox.height / 2.f }; */
+    /* Vector2 worldPos = { */
+    /*     (mousePos.x - halfCanvas.x) / data->zoom + halfCanvas.x + data->offset.x, */
+    /*     (mousePos.y - halfCanvas.y) / data->zoom + halfCanvas.y + data->offset.y */
+    /* }; */
     switch (pointerInfo.state) {
         case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
             printf("MODE: %d\n", data->mode);
             switch(data->mode) {
                 case BEGIN_CREATE_STICK:
-                    Stickfigure* sf = CreateStickfigureFromPart(&data->stickfigure, STICKFIGURE_RECT, mousePos);
+                    Stickfigure* sf = CreateStickfigureFromPart(&data->stickfigure, STICKFIGURE_RECT, worldPos);
+                    printf("(%f, %f)\n", worldPos.x, worldPos.y);
                     data->currentHandle = &sf->sticks.data[0].handle;
                     data->mode = END_CREATE_STICK;
                     break;
@@ -43,7 +60,7 @@ void CanvasEventHandler([[maybe_unused]] Clay_ElementId elementId, Clay_PointerD
             switch (data->mode) {
                 case END_CREATE_STICK:
                     if(data->currentHandle)
-                        *data->currentHandle = mousePos;
+                        *data->currentHandle = worldPos;
                     break;
                 default:
                     break;
@@ -79,6 +96,7 @@ void UpdateDrawFrame() {
 
     BeginDrawing();
     ClearBackground(BLACK);
+    /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */
     Clay_Raylib_Render(renderCommands, fonts);
     Clay_ElementData canvasData =
         Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
