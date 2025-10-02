@@ -117,22 +117,42 @@ void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle v
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    unsigned pos1 = GetShaderLocation(state->stickfigureShader, "start");
-    SetShaderValue(state->stickfigureShader, pos1, &stickfigure->sticks.data[0].pivot, SHADER_UNIFORM_VEC2);
+    typedef struct {
+        Vector2 start;
+        Vector2 end;
+        Vector4 color;
+        float thickness;
+    } SSBOStick;
+    
+    GLuint ssbo;
+    glCreateBuffers(1, &ssbo);
+    glNamedBufferStorage(ssbo, stickfigure->sticks.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
+    SSBOStick* map = glMapNamedBuffer(ssbo, GL_WRITE_ONLY);
+    for(unsigned i = 0; i < stickfigure->sticks.length; i++) {
+        fprintf(stderr, "Stick nº%d\n", i);
+        map->start = stickfigure->sticks.data[i].pivot;
+        map->end = stickfigure->sticks.data[i].handle;
+        map->color = (Vector4) { 1.f, 0.f, 0.f, 1.f};
+        map->thickness = 10.f;
+    }
+    glUnmapNamedBuffer(ssbo);
 
-    unsigned pos2 = GetShaderLocation(state->stickfigureShader, "end");
-    SetShaderValue(state->stickfigureShader, pos2, &stickfigure->sticks.data[0].handle, SHADER_UNIFORM_VEC2);
-
-    float thickness = 10.f;
-    unsigned t = GetShaderLocation(state->stickfigureShader, "thickness");
-    SetShaderValue(state->stickfigureShader, t, &thickness, SHADER_UNIFORM_FLOAT);
-
-    Vector4 color = {1.0, 0.0, 0.0, 1.0};
-    unsigned c = GetShaderLocation(state->stickfigureShader, "color");
-    SetShaderValue(state->stickfigureShader, c, &color, SHADER_UNIFORM_VEC4);
-
-    unsigned v = GetShaderLocation(state->stickfigureShader, "viewport");
-    SetShaderValue(state->stickfigureShader, v, &viewport, SHADER_UNIFORM_VEC4);
+    /* unsigned pos1 = GetShaderLocation(state->stickfigureShader, "start"); */
+    /* SetShaderValue(state->stickfigureShader, pos1, &stickfigure->sticks.data[0].pivot, SHADER_UNIFORM_VEC2); */
+    /**/
+    /* unsigned pos2 = GetShaderLocation(state->stickfigureShader, "end"); */
+    /* SetShaderValue(state->stickfigureShader, pos2, &stickfigure->sticks.data[0].handle, SHADER_UNIFORM_VEC2); */
+    /**/
+    /* float thickness = 10.f; */
+    /* unsigned t = GetShaderLocation(state->stickfigureShader, "thickness"); */
+    /* SetShaderValue(state->stickfigureShader, t, &thickness, SHADER_UNIFORM_FLOAT); */
+    /**/
+    /* Vector4 color = {1.0, 0.0, 0.0, 1.0}; */
+    /* unsigned c = GetShaderLocation(state->stickfigureShader, "color"); */
+    /* SetShaderValue(state->stickfigureShader, c, &color, SHADER_UNIFORM_VEC4); */
+    /**/
+    /* unsigned v = GetShaderLocation(state->stickfigureShader, "viewport"); */
+    /* SetShaderValue(state->stickfigureShader, v, &viewport, SHADER_UNIFORM_VEC4); */
 
     /* rlViewport(viewport.x, viewport.y, viewport.width, viewport.height); */
     /* DrawRectangleRec((Rectangle){0.f, 0.f, viewport.width, viewport.height}, RED); */
@@ -142,9 +162,11 @@ void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle v
     /* rlViewport(viewport.x, viewport.y, viewport.width, viewport.height); */
     ClearBackground(WHITE);
     glUseProgram(state->stickfigureShader.id);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
         glBindVertexArray(vao);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         glBindVertexArray(0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
     glUseProgram(0);
     /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */
     /* DrawRectangleRec((Rectangle) {0.f, 0.f, viewport.width, viewport.height}, MAGENTA); */
@@ -155,6 +177,7 @@ void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle v
     }
     state->rendertexture = rendertexture;
 
+    glDeleteBuffers(1, &ssbo);
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteVertexArrays(1, &vao);

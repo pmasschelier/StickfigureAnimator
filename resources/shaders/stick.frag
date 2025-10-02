@@ -1,12 +1,20 @@
-#version 300 es
+#version 460
 
-precision mediump float;
+// uniform vec2 start;
+// uniform vec2 end;
+// uniform float thickness;
+// uniform vec4 color;
 
-uniform vec2 start;
-uniform vec2 end;
-uniform float thickness;
-uniform vec4 color;
-uniform vec4 viewport;
+struct stick {
+    vec2 start;
+    vec2 end;
+    vec4 color;
+    float thickness;
+};
+
+layout(std430, binding = 0) buffer stickfigure {
+    stick sticks[];
+};
 
 in vec2 fragTexCoord;
 
@@ -21,9 +29,10 @@ float sdSegment( in vec2 p, in vec2 a, in vec2 b )
 
 void main()
 {
-    float d = sdSegment(fragTexCoord, start, end);
-    float alpha = 1.0 - step(thickness, d); 
-    FragColor = vec4(color.rgb, alpha);
-    // FragColor = vec4(fragTexCoord.x / 1000.0, fragTexCoord.y / 1000.0, 0.0, 1.0);
-    // FragColor = vec4(gl_FragCoord.x / 1000.0, gl_FragCoord.y / 1000.0, 0.0, 1.0);
+    float d = sdSegment(fragTexCoord, sticks[0].start, sticks[0].end);
+    for(int i = 1; i < sticks.length(); i++) {
+        d = min(d, sdSegment(fragTexCoord, sticks[i].start, sticks[i].end));
+    }
+    float alpha = 1.0 - step(sticks[0].thickness, d); 
+    FragColor = vec4(sticks[0].color.rgb, alpha);
 }
