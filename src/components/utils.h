@@ -1,17 +1,30 @@
 #ifndef COMPONENTS_UTILS_H
 #define COMPONENTS_UTILS_H
 
+#include "arena.h"
 #include "clay/clay.h"
+#include <stdint.h>
+#include <string.h>
 
 extern bool clickable_hovered;
 
 typedef void (*OnHoverFn)(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
 typedef void (*CallbackFn)(void*);
 
-typedef struct {
+typedef struct Callback Callback_t;
+struct Callback{
     CallbackFn fn;
     void* params;
-} Callback_t;
+    Callback_t* then;
+};
+
+static inline void RunCallbackAll(Callback_t* cb) {
+    if(!cb)
+        return;
+    if(cb->fn)
+        cb->fn(cb->params);
+    RunCallbackAll(cb->then);
+}
 
 typedef struct {
     unsigned item_index;
@@ -19,7 +32,46 @@ typedef struct {
 } ItemData;
 
 typedef struct {
-    void (*onMouseDown)(void);
+    Callback_t* onMouseDown;
+    Callback_t* onMouseUp;
 } ButtonData;
+
+static void HandleHoverFunction(
+    [[maybe_unused]] Clay_ElementId elementId,
+    Clay_PointerData pointerInfo,
+    intptr_t userData
+) {
+    ButtonData *data = (void *)userData;
+    switch (pointerInfo.state) {
+    case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
+        RunCallbackAll(data->onMouseDown);
+        break;
+    case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
+        RunCallbackAll(data->onMouseUp);
+        break;
+    default:
+        break;
+    }
+}
+
+static inline Callback_t* CallbackDeepCopy(Arena* arena, Callback_t* other) {
+    Callback_t* current;
+    if(other == nullptr)
+        return nullptr;
+    current = arena_allocate(arena, 1, sizeof(ButtonData));
+    current->fn = other->fn;
+    current->params = other->params;
+    current->then = CallbackDeepCopy(arena, other->then);
+    return current;
+}
+
+
+static inline void SetButtonCallbacks(Arena* arena, ButtonData data) {
+    ButtonData* button_data = arena_allocate(arena, 1, sizeof(ButtonData));
+    button_data->onMouseDown = CallbackDeepCopy(arena, data.onMouseDown);
+    button_data->onMouseUp = CallbackDeepCopy(arena, data.onMouseUp);
+    Clay_OnHover(HandleHoverFunction, (intptr_t)button_data);
+}
+
 
 #endif // !COMPONENTS_UTILS_H

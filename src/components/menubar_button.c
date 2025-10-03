@@ -1,4 +1,4 @@
-#include "src/components/utils.h"
+#include "utils.h"
 #include <stdint.h>
 
 extern uint16_t selected_font;

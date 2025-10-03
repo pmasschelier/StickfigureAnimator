@@ -25,7 +25,7 @@ opengl = dependency('opengl')
 subdir('src')
 executable('StickfigureAnimator',
            sources,
-           include_directories: ['externals'],
+           include_directories: ['src', 'externals'],
            c_args: ['-DRESOURCE_PATH="' + meson.current_source_dir() / '"'],
            dependencies: [m, raylib_dep, glew, opengl],
            install : true)

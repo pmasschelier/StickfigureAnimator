@@ -1,5 +1,5 @@
 #include "clay/clay.h"
-#include "src/components/utils.h"
+#include "utils.h"
 #include <stdint.h>
 
 void RenderCanvas(Clay_ElementId id, OnHoverFn onHoverFunction, void* hoverFnData) {

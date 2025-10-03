@@ -216,8 +216,6 @@ void HandleChangeMode(void *data) {
     printf("New mode: %d\n", *modedata->mode);
 }
 
-ButtonData editButton = { .onMouseDown = EditButtonMouseDownHandler };
-
 void RenderFileMenu(void *priv, Callback_t onMouseUp) {
     Arena *arena = priv;
     RenderDropdownMenuItem(
@@ -242,14 +240,14 @@ void RenderCreateMenu(void *priv, Callback_t onMouseUp) {
     RenderDropdownMenuItem(
         CLAY_STRING("Stick"),
         (ItemData){ 2, 0 },
-        (Callback_t){ HandleChangeMode, &modes[0]},
+        (Callback_t){ HandleChangeMode, &modes[0], &onMouseUp},
         &data->arena
     );
     modes[1].requested = BEGIN_CREATE_CIRCLE;
     RenderDropdownMenuItem(
         CLAY_STRING("Circle"),
         (ItemData){ 2, 1 },
-        (Callback_t){ HandleChangeMode, &modes[1]},
+        (Callback_t){ HandleChangeMode, &modes[1], &onMouseUp},
         &data->arena
     );
 }
