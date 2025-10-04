@@ -1,11 +1,12 @@
 #ifndef COMPONENTS_H
 #define COMPONENTS_H
 
+#include "raylib.h"
 #include "utils.h"
 #include "arena.h"
 
 
-void RenderCanvas(Clay_ElementId id, OnHoverFn onHoverFunction, void* hoverFnData);
+void RenderCanvas(Clay_ElementId id, OnHoverFn onHoverFunction, void* hoverFnData, Texture2D* texture);
 void RenderDropdownMenuItem(
     Clay_String text,
     ItemData data,

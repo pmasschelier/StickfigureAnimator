@@ -94,17 +94,17 @@ void UpdateDrawFrame() {
     else
         SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
+    Clay_ElementData canvasData =
+        Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
+    renderer_render(
+        &state,
+        &data.rendererData.stickfigure.data[0],
+        (Rectangle){canvasData.boundingBox.x, canvasData.boundingBox.y, canvasData.boundingBox.width, canvasData.boundingBox.height}
+    );
     BeginDrawing();
     ClearBackground(BLACK);
     /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */
     Clay_Raylib_Render(renderCommands, fonts);
-    Clay_ElementData canvasData =
-        Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
-    renderer_render(
-    &state,
-    &data.rendererData.stickfigure.data[0],
-    (Rectangle){canvasData.boundingBox.x, canvasData.boundingBox.y, canvasData.boundingBox.width, canvasData.boundingBox.height}
-    );
     EndDrawing();
 }
 

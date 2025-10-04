@@ -63,7 +63,7 @@ void RenderMenuBarButton(
                     .backgroundColor = {40, 40, 40, 255 },
                     .cornerRadius = {0.f, 8.f, 8.f, 8.f},
                 }) {
-                    RenderMenu(priv, (Callback_t) {(CallbackFn)CloseMenu, menuVisible});
+                    RenderMenu(priv, (Callback_t) {.fn = (CallbackFn)CloseMenu, .params = menuVisible});
                 }
             }
         }

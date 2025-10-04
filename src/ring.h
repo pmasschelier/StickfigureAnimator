@@ -1,4 +1,8 @@
 #ifndef RING_H
+#define RING_H
+
+#include <stdlib.h>
+#include <string.h>
 
 #define DEFINE_RING_TYPE(type)                                          \
     typedef struct {                                                    \
@@ -14,6 +18,13 @@
             malloc(capacity * sizeof(type))                             \
         };                                                              \
     }                                                                   \
+                                                                        \
+    static type* ring_tail_ ## type(type ## _ring_t* ring) {            \
+        if(ring->begin == ring->next)                                   \
+            return nullptr;                                             \
+        return &ring->data[ring->begin];                                \
+    }                                                                   \
+                                                                        \
     static void ring_deinit_ ## type(type ## _ring_t* ring) {           \
         free(ring->data);                                               \
         ring->capacity = 0;                                             \
@@ -25,15 +36,16 @@
         const unsigned next = (ring->next + 1) % ring->capacity;        \
         if(ring->begin == next)                                         \
             return NULL;                                                \
-        const unsigned pop = ring->end;                                 \
-        ring->end = next;                                               \
+        const unsigned pop = ring->next;                                \
+        ring->next = next;                                              \
         return &ring->data[pop];                                        \
     }                                                                   \
                                                                         \
-    static bool ring_pop_ ## type(type* popped) {                       \
+    static bool ring_pop_ ## type(type ## _ring_t* ring, type* popped) {\
         if(ring->begin == ring->next)                                   \
             return false;                                               \
-        memcpy(popped, ring->data[ring->begin], sizeof(type));          \
+        if(popped != nullptr)                                           \
+            memcpy(popped, &ring->data[ring->begin], sizeof(type));     \
         ring->begin = (ring->begin + 1) % ring->capacity;               \
         return true;                                                    \
     }

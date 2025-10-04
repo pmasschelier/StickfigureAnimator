@@ -75,10 +75,11 @@ RendererError renderer_init(RendererState *state) {
     return RENDERER_NOERROR;
 }
 void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle viewport) {
-    if(stickfigure == nullptr)
-        return;
-
     RenderTexture2D rendertexture = LoadRenderTexture(viewport.width, viewport.height);
+    if(rendertexture.id == 0) {
+        fprintf(stderr, "Error: Failed to create render texture of size (%f, %f)\n", viewport.width, viewport.height);
+        return;
+    }
 
     const Vector2 wPositions[4] = {
         {0.f, 0.f },
@@ -116,6 +117,7 @@ void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle v
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     typedef struct {
         Vector2 start;
@@ -125,17 +127,19 @@ void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle v
     } SSBOStick;
     
     GLuint ssbo;
-    glCreateBuffers(1, &ssbo);
-    glNamedBufferStorage(ssbo, stickfigure->sticks.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
-    SSBOStick* map = glMapNamedBuffer(ssbo, GL_WRITE_ONLY);
-    for(unsigned i = 0; i < stickfigure->sticks.length; i++) {
-        fprintf(stderr, "Stick nº%d\n", i);
-        map->start = stickfigure->sticks.data[i].pivot;
-        map->end = stickfigure->sticks.data[i].handle;
-        map->color = (Vector4) { 1.f, 0.f, 0.f, 1.f};
-        map->thickness = 10.f;
+    if(stickfigure) {
+        glCreateBuffers(1, &ssbo);
+        glNamedBufferStorage(ssbo, stickfigure->sticks.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
+        SSBOStick* map = glMapNamedBuffer(ssbo, GL_WRITE_ONLY);
+        for(unsigned i = 0; i < stickfigure->sticks.length; i++) {
+            fprintf(stderr, "Stick nº%d\n", i);
+            map->start = stickfigure->sticks.data[i].pivot;
+            map->end = stickfigure->sticks.data[i].handle;
+            map->color = (Vector4) { 1.f, 0.f, 0.f, 1.f};
+            map->thickness = 10.f;
+        }
+        glUnmapNamedBuffer(ssbo);
     }
-    glUnmapNamedBuffer(ssbo);
 
     /* unsigned pos1 = GetShaderLocation(state->stickfigureShader, "start"); */
     /* SetShaderValue(state->stickfigureShader, pos1, &stickfigure->sticks.data[0].pivot, SHADER_UNIFORM_VEC2); */
@@ -161,13 +165,15 @@ void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle v
     BeginTextureMode(rendertexture);
     /* rlViewport(viewport.x, viewport.y, viewport.width, viewport.height); */
     ClearBackground(WHITE);
-    glUseProgram(state->stickfigureShader.id);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
-        glBindVertexArray(vao);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
-        glBindVertexArray(0);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-    glUseProgram(0);
+    if(stickfigure) {
+        glUseProgram(state->stickfigureShader.id);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
+            glBindVertexArray(vao);
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+            glBindVertexArray(0);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+        glUseProgram(0);
+    }
     /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */
     /* DrawRectangleRec((Rectangle) {0.f, 0.f, viewport.width, viewport.height}, MAGENTA); */
     EndTextureMode();
@@ -182,7 +188,7 @@ void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle v
     glDeleteBuffers(1, &ebo);
     glDeleteVertexArrays(1, &vao);
 
-    DrawTexture(state->rendertexture.texture, viewport.x, viewport.y, WHITE);
+    /* DrawTexture(state->rendertexture.texture, viewport.x, viewport.y, WHITE); */
 }
 
 void renderer_deinit(RendererState *state);
