@@ -1,9 +1,11 @@
 #include "interface.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "rlgl.h"
 #include "src/components/utils.h"
 #include "src/pivot.h"
 #include "src/renderer/renderer.h"
+#include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define CLAY_IMPLEMENTATION
@@ -11,7 +13,8 @@
 #include "clay/renderers/raylib/clay_renderer_raylib.c"
 
 MainLayoutData data;
-RendererState state;
+RendererContext *renderer_context;
+GLFWwindow *window;
 
 bool debugEnabled = false;
 bool clickable_hovered = false;
@@ -19,93 +22,139 @@ bool clickable_hovered = false;
 #define RAYLIB_VECTOR2_TO_CLAY_VECTOR2(vector)                                 \
   (Clay_Vector2) { .x = vector.x, .y = vector.y }
 
+#define CLAY_BOUNDINGBOX_TO_RAYLIB_RECTANGLE(boundingbox)                      \
+  (Rectangle) {                                                                \
+    .x = boundingbox.x, .y = boundingbox.y, .width = boundingbox.width,        \
+    .height = boundingbox.height                                               \
+  }
+
 uint16_t selected_font = 0;
 Font fonts[2];
 
-void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData) {
-    RendererData* data = (void*)userData;
-    Clay_ElementData elementData = Clay_GetElementData(elementId);
-    /* Rectangle defaultViewport = {} */
-    Vector2 worldPos = {
-        pointerInfo.position.x - elementData.boundingBox.x,
-        elementData.boundingBox.height - (pointerInfo.position.y - elementData.boundingBox.y)
-    };
-    /* float camera[9] = { */
-    /*     1.f, 0.f, 0.0f, */
-    /*     0.f, -1.f,  */
-    /* }; */
-    /* Vector2 halfCanvas = { elementData.boundingBox.width / 2.f, elementData.boundingBox.height / 2.f }; */
-    /* Vector2 worldPos = { */
-    /*     (mousePos.x - halfCanvas.x) / data->zoom + halfCanvas.x + data->offset.x, */
-    /*     (mousePos.y - halfCanvas.y) / data->zoom + halfCanvas.y + data->offset.y */
-    /* }; */
-    switch (pointerInfo.state) {
-        case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
-            printf("MODE: %d\n", data->mode);
-            switch(data->mode) {
-                case BEGIN_CREATE_STICK:
-                    Stickfigure* sf = CreateStickfigureFromPart(&data->stickfigure, STICKFIGURE_RECT, worldPos);
-                    printf("(%f, %f)\n", worldPos.x, worldPos.y);
-                    data->currentHandle = &sf->sticks.data[0].handle;
-                    data->mode = END_CREATE_STICK;
-                    break;
-                case END_CREATE_STICK:
-                    data->mode = BEGIN_CREATE_STICK;
-                    break;
-                default:
-                    break;
-            }
-            break;
-        default:
-            switch (data->mode) {
-                case END_CREATE_STICK:
-                    if(data->currentHandle)
-                        *data->currentHandle = worldPos;
-                    break;
-                default:
-                    break;
-            }
-            break;
+void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
+                        intptr_t userData) {
+  RendererData *data = (void *)userData;
+  Clay_ElementData elementData = Clay_GetElementData(elementId);
+  /* Rectangle defaultViewport = {} */
+  Vector2 worldPos = {pointerInfo.position.x - elementData.boundingBox.x,
+                      elementData.boundingBox.height -
+                          (pointerInfo.position.y - elementData.boundingBox.y)};
+  PivotIndex nearestjoint;
+  float dist = GetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
+  /* float camera[9] = { */
+  /*     1.f, 0.f, 0.0f, */
+  /*     0.f, -1.f,  */
+  /* }; */
+  /* Vector2 halfCanvas = { elementData.boundingBox.width / 2.f,
+   * elementData.boundingBox.height / 2.f }; */
+  /* Vector2 worldPos = { */
+  /*     (mousePos.x - halfCanvas.x) / data->zoom + halfCanvas.x +
+   * data->offset.x, */
+  /*     (mousePos.y - halfCanvas.y) / data->zoom + halfCanvas.y +
+   * data->offset.y */
+  /* }; */
+  switch (pointerInfo.state) {
+  case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
+    printf("MODE: %d\n", data->mode);
+    for (unsigned i = 0; i < data->stickfigure.length; i++) {
+      printf("Stickfigure nº%d\n", i);
+      for (unsigned j = 0; j < data->stickfigure.data[i].sticks.length; j++) {
+        StickfigurePart *part = &data->stickfigure.data[i].sticks.data[j];
+        printf("(%f, %f) - (%f, %f)\n", part->pivot.x, part->pivot.y,
+               part->handle.x, part->handle.y);
+      }
     }
+    switch (data->mode) {
+    case BEGIN_CREATE_STICK:
+      if (data->stickfigure.length > 0) {
+        printf("Clicked near (%d/%d, %d/%d, %d/%d): d = %f\n",
+               nearestjoint.figure, data->stickfigure.length, nearestjoint.part,
+               data->stickfigure.data[nearestjoint.figure].sticks.length,
+               nearestjoint.handle,
+               data->stickfigure.data[nearestjoint.figure]
+                       .sticks.data[nearestjoint.part]
+                       .handle_count +
+                   2,
+               dist);
+      }
+      if (data->stickfigure.length > 0 && dist < 3.f) {
+        StickfigurePart *part =
+            AddStickfigurePart(&data->stickfigure.data[nearestjoint.figure],
+                               nearestjoint.part, nearestjoint.handle);
+        data->currentHandle = &part->handle;
+        /* printf("Clicked on (%d/%d, %d/%d, %d/%d): d = %f\n", */
+        /*        nearestjoint.figure, data->stickfigure.length, */
+        /*        nearestjoint.part,
+         * data->stickfigure.data[nearestjoint.figure].sticks.length, */
+        /*        nearestjoint.handle,
+         * data->stickfigure.data[nearestjoint.figure].sticks.data[nearestjoint.part].handle_count
+         * + 2, */
+        /*        dist); */
+      } else {
+        Stickfigure *sf = CreateStickfigureFromPart(&data->stickfigure,
+                                                    STICKFIGURE_RECT, worldPos);
+        printf("(%f, %f)\n", worldPos.x, worldPos.y);
+        data->currentHandle = &sf->sticks.data[0].handle;
+      }
+      data->mode = END_CREATE_STICK;
+      break;
+    case END_CREATE_STICK:
+      data->mode = BEGIN_CREATE_STICK;
+      break;
+    default:
+      break;
+    }
+    break;
+  default:
+    switch (data->mode) {
+    case END_CREATE_STICK:
+      if (data->currentHandle)
+        *data->currentHandle = worldPos;
+      break;
+    default:
+      break;
+    }
+    break;
+  }
 }
 
 void UpdateDrawFrame() {
-    Vector2 mouseWheelDelta = GetMouseWheelMoveV();
-    float mouseWheelX = mouseWheelDelta.x;
-    float mouseWheelY = mouseWheelDelta.y;
+  Vector2 mouseWheelDelta = GetMouseWheelMoveV();
+  float mouseWheelX = mouseWheelDelta.x;
+  float mouseWheelY = mouseWheelDelta.y;
 
-    if (IsKeyPressed(KEY_D)) {
-        debugEnabled = !debugEnabled;
-        Clay_SetDebugModeEnabled(debugEnabled);
-    }
-    //----------------------------------------------------------------------------------
-    // Handle scroll containers
-    Clay_Vector2 mousePosition =
-        RAYLIB_VECTOR2_TO_CLAY_VECTOR2(GetMousePosition());
-    Clay_SetPointerState(mousePosition, IsMouseButtonDown(0));
-    Clay_SetLayoutDimensions((Clay_Dimensions){(float)GetScreenWidth(), (float)GetScreenHeight()});
+  if (IsKeyPressed(KEY_D)) {
+    debugEnabled = !debugEnabled;
+    Clay_SetDebugModeEnabled(debugEnabled);
+  }
+  //----------------------------------------------------------------------------------
+  // Handle scroll containers
+  Clay_Vector2 mousePosition =
+      RAYLIB_VECTOR2_TO_CLAY_VECTOR2(GetMousePosition());
+  Clay_SetPointerState(mousePosition, IsMouseButtonDown(0));
+  Clay_SetLayoutDimensions(
+      (Clay_Dimensions){(float)GetScreenWidth(), (float)GetScreenHeight()});
 
-    Clay_UpdateScrollContainers(true, (Clay_Vector2){mouseWheelX, mouseWheelY}, GetFrameTime());
-    // Generate the auto layout for rendering
-    clickable_hovered = false;
-    Clay_RenderCommandArray renderCommands = MainLayout_CreateLayout(&data);
-    if (clickable_hovered)
-        SetMouseCursor(MOUSE_CURSOR_POINTING_HAND);
-    else
-        SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+  Clay_UpdateScrollContainers(true, (Clay_Vector2){mouseWheelX, mouseWheelY},
+                              GetFrameTime());
+  // Generate the auto layout for rendering
+  clickable_hovered = false;
+  Clay_RenderCommandArray renderCommands = MainLayout_CreateLayout(&data);
+  if (clickable_hovered)
+    SetMouseCursor(MOUSE_CURSOR_POINTING_HAND);
+  else
+    SetMouseCursor(MOUSE_CURSOR_DEFAULT);
 
-    Clay_ElementData canvasData =
-        Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
-    renderer_render(
-        &state,
-        &data.rendererData.stickfigure.data[0],
-        (Rectangle){canvasData.boundingBox.x, canvasData.boundingBox.y, canvasData.boundingBox.width, canvasData.boundingBox.height}
-    );
-    BeginDrawing();
-    ClearBackground(BLACK);
-    /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */
-    Clay_Raylib_Render(renderCommands, fonts);
-    EndDrawing();
+  Clay_ElementData canvasData =
+      Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
+  renderer_render(
+      renderer_context, data.rendererData.stickfigure,
+      (Vector2){canvasData.boundingBox.width, canvasData.boundingBox.height});
+  BeginDrawing();
+  ClearBackground(BLACK);
+  /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */
+  Clay_Raylib_Render(renderCommands, fonts);
+  EndDrawing();
 }
 
 bool reinitializeClay = false;
@@ -124,6 +173,7 @@ void HandleClayErrors(Clay_ErrorData errorData) {
 }
 
 int main(void) {
+  /* SetTraceLogLevel(LOG_WARNING); */
   uint64_t totalMemorySize = Clay_MinMemorySize();
   Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(
       totalMemorySize, malloc(totalMemorySize));
@@ -134,7 +184,9 @@ int main(void) {
   Clay_Raylib_Initialize(1024, 768, "Clay - Raylib Renderer Example",
                          FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE |
                              FLAG_MSAA_4X_HINT);
-  if (RENDERER_NOERROR != renderer_init(&state))
+  renderer_context = malloc(SizeofRendererContext);
+    renderer_context = renderer_init((Rectangle){0, 0, 1024, 768});
+  if (renderer_context == nullptr)
     return EXIT_FAILURE;
 
   data = MainLayout_Initialize();
@@ -165,6 +217,7 @@ int main(void) {
     }
     UpdateDrawFrame();
   }
+  renderer_deinit(renderer_context);
   Clay_Raylib_Close();
   return 0;
 }

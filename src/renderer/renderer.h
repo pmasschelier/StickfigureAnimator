@@ -5,18 +5,18 @@
 #include "src/pivot.h"
 #include "rlgl.h"
 
-typedef struct {
-    Shader stickfigureShader;
-    RenderTexture2D rendertexture;
-} RendererState;
+typedef struct RendererContext RendererContext;
+extern const size_t SizeofRendererContext;
 
 typedef enum {
   RENDERER_NOERROR,
   RENDERER_FAILED_TO_LOAD_SHADER,
 } RendererError;
 
-RendererError renderer_init(RendererState *state);
-void renderer_render(RendererState *state, Stickfigure* stickfigure, Rectangle viewport);
-void renderer_deinit(RendererState *state);
+RendererContext* renderer_init( Rectangle worldViewport);
+Texture2D* renderer_get_frame(RendererContext * state);
+void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res);
+void renderer_deinit(RendererContext *state);
+Vector2 renderer_get_screen_position(RendererContext* context, Vector2 worldPosition, Rectangle screenViewport);
 
 #endif // !STICKFIGURE_RENDERER_H

@@ -30,8 +30,17 @@ typedef struct {
     StickfigureJoint_array_t joints;
 } Stickfigure;
 
+typedef struct {
+    unsigned figure;
+    unsigned part;
+    unsigned handle;
+} PivotIndex;
+
 DEFINE_ARRAY_TYPE(Stickfigure)
 
+StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, unsigned part, unsigned handle);
 Stickfigure* CreateStickfigureFromPart(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot);
+float GetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotIndex* joint);
+Vector2 GetHandlePosition(Stickfigure_array_t stickfigures, PivotIndex index);
 
 #endif // !PIVOT_H

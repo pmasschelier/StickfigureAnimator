@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-extern RendererState state;
+extern RendererContext* renderer_context;
 
 constexpr Clay_Color COLOR_WHITE = { 255, 255, 255, 255 };
 
@@ -387,7 +387,7 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
                       .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
                       .padding = CLAY_PADDING_ALL(16) } }
             ) {
-                RenderCanvas(CLAY_ID("canvas"), CanvasEventHandler, &data->rendererData, &state.rendertexture.texture);
+                RenderCanvas(CLAY_ID("canvas"), CanvasEventHandler, &data->rendererData, renderer_get_frame(renderer_context));
             }
         }
     }
