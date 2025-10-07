@@ -1,18 +1,19 @@
 #version 460
 
-// uniform vec2 start;
-// uniform vec2 end;
 uniform float joint_radius;
-// uniform vec4 color;
+
+#define STICK 0
+#define CIRCLE 1
 
 struct stick {
     vec2 start;
     vec2 end;
     vec4 color;
+    uint type;
     float thickness;
 };
 
-layout(std430, binding = 0) buffer stickfigure {
+layout(std430, binding = 0) readonly buffer stickfigure {
     stick sticks[];
 };
 
@@ -32,15 +33,24 @@ float sdCircle( vec2 p, float r )
     return length(p) - r;
 }
 
+float sdStick(in vec2 p, in stick s) {
+    float d = 0.0;
+    if(s.type == 0)
+        d = sdSegment(fragTexCoord, s.start, s.end);
+    else if(s.type == 1)
+        d = abs(sdCircle(fragTexCoord - 0.5 * (s.start + s.end), 0.5 * distance(s.start, s.end)));
+    return d - 0.5 * s.thickness;
+}
+
 void main()
 {
-    float d = sdSegment(fragTexCoord, sticks[0].start, sticks[0].end);
+    float d = sdStick(fragTexCoord, sticks[0]);
     float d_joints = min(sdCircle(fragTexCoord - sticks[0].start, joint_radius), sdCircle(fragTexCoord - sticks[0].end, joint_radius));
     for(int i = 1; i < sticks.length(); i++) {
-        d = min(d, sdSegment(fragTexCoord, sticks[i].start, sticks[i].end));
+        d = min(d, sdStick(fragTexCoord, sticks[i]));
         d_joints = min(d_joints, min(sdCircle(fragTexCoord - sticks[i].start, joint_radius), sdCircle(fragTexCoord - sticks[i].end, joint_radius)));
     }
-    float alpha = 1.0 - step(sticks[0].thickness, d); 
+    float alpha = 1.0 - step(0.0, d); 
     vec4 color = vec4(sticks[0].color.rgb * alpha, alpha);
     float alpha_joints = 1.0 - step(0, d_joints);
     vec4 color_joints = vec4(alpha_joints, 0.0, 0.0, alpha_joints);

@@ -2,6 +2,7 @@
 #include "arena.h"
 #include "components/components.h"
 #include "components/utils.h"
+#include "pivot.h"
 #include "renderer/renderer.h"
 #include <assert.h>
 #include <stdint.h>
@@ -210,12 +211,16 @@ void EditButtonMouseDownHandler() { printf("Button clicked\n"); }
 
 typedef struct {
     EditMode *mode;
-    EditMode requested;
+    StickfigurePartType* stickType;
+    EditMode modeRequested;
+    StickfigurePartType stickTypeRequested;
 } HandleChangeModeData;
 
 void HandleChangeMode(void *data) {
     HandleChangeModeData *modedata = data;
-    *modedata->mode = modedata->requested;
+    *modedata->mode = modedata->modeRequested;
+    if(modedata->modeRequested == EDIT)
+        *modedata->stickType = modedata->stickTypeRequested;
     printf("New mode: %d\n", *modedata->mode);
 }
 
@@ -238,15 +243,17 @@ void RenderCreateMenu(void *priv, Callback_t onMouseUp) {
         arena_allocate(&data->arena, 2, sizeof(HandleChangeModeData));
     for (int i = 0; i < 2; i++) {
         modes[i].mode = &data->rendererData.mode;
+        modes[i].stickType = &data->rendererData.stickType;
+        modes[i].modeRequested = EDIT;
     }
-    modes[0].requested = BEGIN_CREATE_STICK;
+    modes[0].stickTypeRequested = STICKFIGURE_STICK;
     RenderDropdownMenuItem(
         CLAY_STRING("Stick"),
         (ItemData){ 2, 0 },
         (Callback_t){ HandleChangeMode, &modes[0], &onMouseUp},
         &data->arena
     );
-    modes[1].requested = BEGIN_CREATE_CIRCLE;
+    modes[1].stickTypeRequested = STICKFIGURE_RING;
     RenderDropdownMenuItem(
         CLAY_STRING("Circle"),
         (ItemData){ 2, 1 },

@@ -15,7 +15,7 @@ Stickfigure* CreateStickfigureFromPart(Stickfigure_array_t* array, StickfigurePa
     return sf;
 }
 
-StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, unsigned part, unsigned handle) {
+StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, StickfigurePartType type, unsigned part, unsigned handle) {
     Vector2 position;
     if(handle == 0)
         position = stickfigure->sticks.data[part].pivot;
@@ -29,7 +29,7 @@ StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, unsigned part, uns
     joint->sticks[1] = stickfigure->sticks.length;
     joint->handles[1] = 0;
     StickfigurePart* stick = array_append_StickfigurePart(&stickfigure->sticks);
-    stick->type = STICKFIGURE_RECT;
+    stick->type = type;
     stick->pivot = position;
     stick->handle = position;
     stick->handle_count = 0;

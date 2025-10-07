@@ -10,7 +10,11 @@
 constexpr int FONT_ID_BODY_32 = 0;
 constexpr int FONT_ID_BODY_24 = 1;
 
-typedef enum { NORMAL, BEGIN_CREATE_STICK, END_CREATE_STICK, BEGIN_CREATE_CIRCLE, END_CREATE_CIRCLE } EditMode;
+typedef enum {
+    NORMAL,
+    EDIT,
+    CLOSE_EDIT
+} EditMode;
 
 constexpr unsigned MENUBAR_BUTTON_COUNT = 5;
 
@@ -18,6 +22,7 @@ typedef struct {
     Stickfigure_array_t stickfigure;
     Vector2* currentHandle;
     EditMode mode;
+    StickfigurePartType stickType;
     Vector2 offset;
     float zoom;
 } RendererData;

@@ -41,18 +41,6 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                           (pointerInfo.position.y - elementData.boundingBox.y)};
   PivotIndex nearestjoint;
   float dist = GetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
-  /* float camera[9] = { */
-  /*     1.f, 0.f, 0.0f, */
-  /*     0.f, -1.f,  */
-  /* }; */
-  /* Vector2 halfCanvas = { elementData.boundingBox.width / 2.f,
-   * elementData.boundingBox.height / 2.f }; */
-  /* Vector2 worldPos = { */
-  /*     (mousePos.x - halfCanvas.x) / data->zoom + halfCanvas.x +
-   * data->offset.x, */
-  /*     (mousePos.y - halfCanvas.y) / data->zoom + halfCanvas.y +
-   * data->offset.y */
-  /* }; */
   switch (pointerInfo.state) {
   case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
     printf("MODE: %d\n", data->mode);
@@ -65,7 +53,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
       }
     }
     switch (data->mode) {
-    case BEGIN_CREATE_STICK:
+    case EDIT:
       if (data->stickfigure.length > 0) {
         printf("Clicked near (%d/%d, %d/%d, %d/%d): d = %f\n",
                nearestjoint.figure, data->stickfigure.length, nearestjoint.part,
@@ -78,28 +66,20 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                dist);
       }
       if (data->stickfigure.length > 0 && dist < 3.f) {
-        StickfigurePart *part =
-            AddStickfigurePart(&data->stickfigure.data[nearestjoint.figure],
-                               nearestjoint.part, nearestjoint.handle);
+        StickfigurePart *part = AddStickfigurePart(
+    &data->stickfigure.data[nearestjoint.figure],
+            data->stickType, nearestjoint.part, nearestjoint.handle);
         data->currentHandle = &part->handle;
-        /* printf("Clicked on (%d/%d, %d/%d, %d/%d): d = %f\n", */
-        /*        nearestjoint.figure, data->stickfigure.length, */
-        /*        nearestjoint.part,
-         * data->stickfigure.data[nearestjoint.figure].sticks.length, */
-        /*        nearestjoint.handle,
-         * data->stickfigure.data[nearestjoint.figure].sticks.data[nearestjoint.part].handle_count
-         * + 2, */
-        /*        dist); */
       } else {
         Stickfigure *sf = CreateStickfigureFromPart(&data->stickfigure,
-                                                    STICKFIGURE_RECT, worldPos);
+                                                    data->stickType, worldPos);
         printf("(%f, %f)\n", worldPos.x, worldPos.y);
         data->currentHandle = &sf->sticks.data[0].handle;
       }
-      data->mode = END_CREATE_STICK;
+      data->mode = CLOSE_EDIT;
       break;
-    case END_CREATE_STICK:
-      data->mode = BEGIN_CREATE_STICK;
+    case CLOSE_EDIT:
+      data->mode = EDIT;
       break;
     default:
       break;
@@ -107,7 +87,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     break;
   default:
     switch (data->mode) {
-    case END_CREATE_STICK:
+    case CLOSE_EDIT:
       if (data->currentHandle)
         *data->currentHandle = worldPos;
       break;

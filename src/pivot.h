@@ -5,8 +5,8 @@
 #include "src/array.h"
 
 typedef enum {
-    STICKFIGURE_RECT,
-    STICKFIGURE_CIRCLE,
+    STICKFIGURE_STICK,
+    STICKFIGURE_RING,
 } StickfigurePartType;
 
 typedef struct {
@@ -38,7 +38,7 @@ typedef struct {
 
 DEFINE_ARRAY_TYPE(Stickfigure)
 
-StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, unsigned part, unsigned handle);
+StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, StickfigurePartType type, unsigned part, unsigned handle);
 Stickfigure* CreateStickfigureFromPart(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot);
 float GetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotIndex* joint);
 Vector2 GetHandlePosition(Stickfigure_array_t stickfigures, PivotIndex index);

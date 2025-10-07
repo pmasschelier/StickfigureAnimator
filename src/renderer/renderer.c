@@ -155,8 +155,9 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
         Vector2 start;
         Vector2 end;
         Vector4 color;
-        float thickness;
-        float padding[3];
+        GLuint type;
+        GLfloat thickness;
+        float padding[2];
     } SSBOStick;
 
     SetShaderValue(state->stickfigureShader, state->locations.joint_radius, &state->joint_radius, SHADER_UNIFORM_FLOAT);
@@ -173,6 +174,7 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
                 map[i].start = stickfigure->sticks.data[i].pivot;
                 map[i].end = stickfigure->sticks.data[i].handle;
                 map[i].color = (Vector4) { 0.f, 0.f, 0.f, 1.f};
+                map[i].type = stickfigure->sticks.data[i].type;
                 map[i].thickness = 10.f;
             }
             glUnmapNamedBuffer(ssbos[i]);
@@ -197,8 +199,6 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     glDeleteBuffers(1, &vbo_t);
     glDeleteBuffers(1, &ebo);
     glDeleteVertexArrays(1, &vao);
-
-    /* DrawTexture(state->rendertexture.texture, viewport.x, viewport.y, WHITE); */
 }
 
 Vector2 renderer_get_screen_position(RendererContext* context, Vector2 worldPosition, Rectangle screenViewport) {
