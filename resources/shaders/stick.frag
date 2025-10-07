@@ -44,6 +44,7 @@ float sdStick(in vec2 p, in stick s) {
 
 void main()
 {
+    vec4 finalColor = vec4(0.0);
     float d = sdStick(fragTexCoord, sticks[0]);
     float d_joints = min(sdCircle(fragTexCoord - sticks[0].start, joint_radius), sdCircle(fragTexCoord - sticks[0].end, joint_radius));
     for(int i = 1; i < sticks.length(); i++) {
@@ -54,5 +55,6 @@ void main()
     vec4 color = vec4(sticks[0].color.rgb * alpha, alpha);
     float alpha_joints = 1.0 - step(0, d_joints);
     vec4 color_joints = vec4(alpha_joints, 0.0, 0.0, alpha_joints);
-    FragColor = vec4(color_joints + color * (1 - alpha_joints));
+    finalColor = vec4(color_joints + color * (1 - alpha_joints));
+    FragColor = finalColor;
 }

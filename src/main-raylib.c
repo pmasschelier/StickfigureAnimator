@@ -36,9 +36,12 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
   RendererData *data = (void *)userData;
   Clay_ElementData elementData = Clay_GetElementData(elementId);
   /* Rectangle defaultViewport = {} */
-  Vector2 worldPos = {pointerInfo.position.x - elementData.boundingBox.x,
-                      elementData.boundingBox.height -
-                          (pointerInfo.position.y - elementData.boundingBox.y)};
+  Vector2 canvasPosition = {
+        .x = pointerInfo.position.x - elementData.boundingBox.x,
+        .y = elementData.boundingBox.height - (pointerInfo.position.y - elementData.boundingBox.y)
+  };
+  Vector2 resolution = { elementData.boundingBox.width, elementData.boundingBox.height };
+  Vector2 worldPos = renderer_get_world_position(renderer_context, canvasPosition, resolution);
   PivotIndex nearestjoint;
   float dist = GetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
   switch (pointerInfo.state) {
@@ -165,7 +168,7 @@ int main(void) {
                          FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE |
                              FLAG_MSAA_4X_HINT);
   renderer_context = malloc(SizeofRendererContext);
-    renderer_context = renderer_init((Rectangle){0, 0, 1024, 768});
+  renderer_context = renderer_init((Rectangle){0, 0, 100, 100});
   if (renderer_context == nullptr)
     return EXIT_FAILURE;
 

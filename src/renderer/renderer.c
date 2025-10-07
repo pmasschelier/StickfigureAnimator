@@ -7,6 +7,7 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -14,10 +15,12 @@
 
 struct RendererContext {
     Shader stickfigureShader;
+    Shader postprocessShader;
     RenderTexture2D rendertexture;
     Rectangle worldViewport;
     struct {
         unsigned joint_radius;
+        unsigned viewport;
     } locations;
     float joint_radius;
 };
@@ -78,9 +81,15 @@ RendererContext* renderer_init(Rectangle worldViewport) {
         free(state);
         return nullptr;
     }
+    state->postprocessShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/postprocess.frag");
+    if (state->stickfigureShader.id == 0) {
+        free(state);
+        return nullptr;
+    }
 
-    state->joint_radius = 3.f;
+    state->joint_radius = .3f;
     state->locations.joint_radius = GetShaderLocation(state->stickfigureShader, "joint_radius");
+    state->locations.viewport = GetShaderLocation(state->postprocessShader, "viewport");
 
     if(glewInit() != GLEW_OK) {
         fprintf(stderr, "FATAL ERROR: Failed to initialize GLEW\n");
@@ -100,6 +109,21 @@ Texture2D* renderer_get_frame(RendererContext * state) {
     return &state->rendertexture.texture;
 }
 
+static Rectangle renderer_get_effective_viewport(Rectangle worldViewport, Vector2 res) {
+    Rectangle effectiveViewport = worldViewport;
+    float aspectRatioRatio = (res.x / res.y) / (worldViewport.width / worldViewport.height);
+    if(aspectRatioRatio > 1.f) {
+        float offset = worldViewport.width * (aspectRatioRatio - 1);
+        effectiveViewport.x -= offset / 2.f;
+        effectiveViewport.width += offset;
+    } else if(aspectRatioRatio < 1.f) {
+        float offset = worldViewport.height * (1.f / aspectRatioRatio - 1.f);
+        effectiveViewport.y -= offset / 2.f;
+        effectiveViewport.height += offset;
+    }
+    return effectiveViewport;
+}
+
 void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res) {
     if(state->rendertexture.id == 0) {
         state->rendertexture = LoadRenderTexture(res.x, res.y);
@@ -112,13 +136,20 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
         fprintf(stderr, "Error: Failed to create render texture of size (%f, %f)\n", res.x, res.y);
         return;
     }
-
+    
+    Rectangle effectiveViewport = renderer_get_effective_viewport(state->worldViewport, res);
     const Vector2 wPositions[4] = {
-        {0.f, 0.f },
-        { res.x, 0.f },
-        { res.x, res.y},
-        { 0.f, res.y}
+        {effectiveViewport.x, effectiveViewport.y },
+        { effectiveViewport.x + effectiveViewport.width, effectiveViewport.y },
+        { effectiveViewport.x + effectiveViewport.width, effectiveViewport.y + effectiveViewport.height},
+        { effectiveViewport.x, effectiveViewport.y + effectiveViewport.height}
     };
+    /* const Vector2 wPositions[4] = { */
+    /*     {0.f, 0.f }, */
+    /*     { res.x, 0.f }, */
+    /*     { res.x, res.y}, */
+    /*     { 0.f, res.y} */
+    /* }; */
     const Vector2 vertices[4] = {
         { -1.f, 1.f },
         { 1.f, 1.f },
@@ -161,6 +192,7 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     } SSBOStick;
 
     SetShaderValue(state->stickfigureShader, state->locations.joint_radius, &state->joint_radius, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(state->postprocessShader, state->locations.viewport, &state->worldViewport, SHADER_UNIFORM_VEC4);
     
     GLuint* ssbos;
     if(stickfigures.length > 0) {
@@ -175,7 +207,7 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
                 map[i].end = stickfigure->sticks.data[i].handle;
                 map[i].color = (Vector4) { 0.f, 0.f, 0.f, 1.f};
                 map[i].type = stickfigure->sticks.data[i].type;
-                map[i].thickness = 10.f;
+                map[i].thickness = 1.f;
             }
             glUnmapNamedBuffer(ssbos[i]);
         }
@@ -183,15 +215,17 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
 
     BeginTextureMode(state->rendertexture);
     ClearBackground(WHITE);
+    glBindVertexArray(vao);
     for (unsigned i = 0; i < stickfigures.length; i++) {
         glUseProgram(state->stickfigureShader.id);
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbos[i]);
-            glBindVertexArray(vao);
-                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
-            glBindVertexArray(0);
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-        glUseProgram(0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbos[i]);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
     }
+    glUseProgram(state->postprocessShader.id);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+    glUseProgram(0);
+    glBindVertexArray(0);
     EndTextureMode();
 
     glDeleteBuffers(stickfigures.length, ssbos);
@@ -209,6 +243,18 @@ Vector2 renderer_get_screen_position(RendererContext* context, Vector2 worldPosi
     return (Vector2) {
         screenViewport.x + scale.x * (worldPosition.x - context->worldViewport.x),
         screenViewport.y + screenViewport.height - scale.y * (worldPosition.y - context->worldViewport.y),
+    };
+}
+
+Vector2 renderer_get_world_position(RendererContext* context, Vector2 canvasPosition, Vector2 res) {
+    const Rectangle viewport = renderer_get_effective_viewport(context->worldViewport, res);
+    const Vector2 scale = {
+        viewport.width / res.x,
+        viewport.height / res.y
+    };
+    return (Vector2) {
+        viewport.x + canvasPosition.x * scale.x,
+        viewport.y + canvasPosition.y * scale.y,
     };
 }
 

@@ -18,5 +18,6 @@ Texture2D* renderer_get_frame(RendererContext * state);
 void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res);
 void renderer_deinit(RendererContext *state);
 Vector2 renderer_get_screen_position(RendererContext* context, Vector2 worldPosition, Rectangle screenViewport);
+Vector2 renderer_get_world_position(RendererContext* context, Vector2 canvasPosition, Vector2 res);
 
 #endif // !STICKFIGURE_RENDERER_H
