@@ -35,6 +35,7 @@ typedef struct {
     unsigned from;
     unsigned to;
     StickfigurePartType type;
+    double angle;
 } StickfigureEdge;
 
 typedef struct {

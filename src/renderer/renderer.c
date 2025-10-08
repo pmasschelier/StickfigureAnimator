@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "arena.h"
 #include "array.h"
 #include "raymath.h"
 #include "rlgl.h"
@@ -125,6 +126,22 @@ static Rectangle renderer_get_effective_viewport(Rectangle worldViewport, Vector
     return effectiveViewport;
 }
 
+typedef struct {
+    Vector2 start;
+    Vector2 end;
+    Vector4 color;
+    GLuint type;
+    GLfloat thickness;
+    float padding[2];
+} SSBOStick;
+
+SSBOStick* renderer_compute_sticks(Arena* arena, Stickfigure* s) {
+    SSBOStick* ret = arena_allocate(arena, s->edges.length, sizeof(SSBOStick));
+    unsigned int index = 0;
+    
+    return ret;
+}
+
 void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
     if(state->rendertexture.id == 0) {
         state->rendertexture = LoadRenderTexture(res.x, res.y);
@@ -182,15 +199,6 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     glCreateBuffers(1, &ebo);
     glNamedBufferStorage(ebo, sizeof(indices), indices, 0);
     glVertexArrayElementBuffer(vao, ebo);
-
-    typedef struct {
-        Vector2 start;
-        Vector2 end;
-        Vector4 color;
-        GLuint type;
-        GLfloat thickness;
-        float padding[2];
-    } SSBOStick;
 
     SetShaderValue(state->stickfigureShader, state->locations.joint_radius, &pivotRadius, SHADER_UNIFORM_FLOAT);
     SetShaderValue(state->postprocessShader, state->locations.viewport, &state->worldViewport, SHADER_UNIFORM_VEC4);

@@ -23,7 +23,12 @@ constexpr unsigned MENUBAR_BUTTON_COUNT = 5;
 
 typedef struct {
     Stickfigure_array_t stickfigure;
-    Vector2* currentHandle;
+    struct {
+        PivotIndex joint;
+        Vector2 startPointer;
+        Vector2 start;
+        bool holding;
+    } hand;
     EditMode mode;
     StickfigurePartType stickType;
     Vector2 offset;

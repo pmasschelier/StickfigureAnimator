@@ -1,3 +1,4 @@
+#include "external/tinyobj_loader_c.h"
 #include "interface.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -31,6 +32,13 @@ bool clickable_hovered = false;
 uint16_t selected_font = 0;
 Font fonts[2];
 
+void HandTake(RendererData* data, PivotIndex index, Vector2 pointer) {
+    data->hand.holding = true;
+    data->hand.joint = index;
+    data->hand.start = data->stickfigure.data[index.figure].joints.data[index.joint].pos;
+    data->hand.startPointer = pointer;
+}
+
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                         intptr_t userData) {
   RendererData *data = (void *)userData;
@@ -50,13 +58,14 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
   PivotIndex nearestjoint;
   float dist = PivotGetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
   bool isOnJoint = data->stickfigure.length > 0 && dist < data->pivotRadius;
+  bool isShiftPressed = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
 
   switch (pointerInfo.state) {
   case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
     switch (data->mode) {
     case NORMAL:
-      if (!(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
-        data->currentHandle = &data->stickfigure.data[nearestjoint.figure].joints.data[nearestjoint.joint].pos;
+      if (!isShiftPressed) {
+        HandTake(data, nearestjoint, worldPos);
       }
       break;
     default:
@@ -64,26 +73,15 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     }
     break;
   case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
-    printf("MODE: %d\n", data->mode);
-    /* for (unsigned i = 0; i < data->stickfigure.length; i++) { */
-    /*   printf("Stickfigure nº%d\n", i); */
-    /*   for (unsigned j = 0; j < data->stickfigure.data[i].sticks.length; j++) { */
-    /*     StickfigurePart *part = &data->stickfigure.data[i].sticks.data[j]; */
-    /*     printf("(%f, %f) - (%f, %f)\n", part->pivot.x, part->pivot.y, */
-    /*            part->handle.x, part->handle.y); */
-    /*   } */
-    /* } */
     switch (data->mode) {
     case NORMAL:
-      data->currentHandle = nullptr;
-      if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
-        if (isOnJoint) {
+      data->hand.holding = false;
+        if (isShiftPressed && isOnJoint) {
           StickfigureEdge *part = PivotAddStick(
               &data->stickfigure.data[nearestjoint.figure], data->stickType,
               nearestjoint.joint);
-          data->currentHandle = &data->stickfigure.data[nearestjoint.figure].joints.data[part->to].pos;
+          HandTake(data, (PivotIndex) { nearestjoint.figure, part->to }, worldPos);
         }
-      }
       break;
     default:
       break;
@@ -92,8 +90,9 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
   default:
     break;
   }
-  if (data->currentHandle)
+  if (data->hand.holding) {
     *data->currentHandle = worldPos;
+  }
 }
 
 void UpdateDrawFrame() {

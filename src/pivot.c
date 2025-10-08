@@ -1,17 +1,20 @@
 #include "pivot.h"
+#include "array.h"
 #include "raylib.h"
+#include "raymath.h"
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 
 Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot, Vector2 handle) {
     Stickfigure* sf = array_append_Stickfigure(array);
     sf->joints = (StickfigureJoint_array_t){};
     sf->edges = (StickfigureEdge_array_t){};
     StickfigureEdge* edge = array_append_StickfigureEdge(&sf->edges);
-    edge->from = 0;
-    edge->to = 1;
-    edge->type = type;
+    *edge = (StickfigureEdge) {
+        .from = 0,
+        .to = 1,
+        .type = type
+    };
     StickfigureJoint* ppivot = array_append_StickfigureJoint(&sf->joints);
     ppivot->pos = pivot;
     StickfigureJoint* phandle = array_append_StickfigureJoint(&sf->joints);
@@ -20,16 +23,16 @@ Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, StickfigurePartT
 }
 
 StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot) {
-    fprintf(
-        stderr, "s = %p, pivot = %d, s->joint.length = %d\n", s, pivot, s->joints.length);
     assert(s && pivot < s->joints.length);
     int ret = s->joints.length;
     StickfigureJoint* handle = array_append_StickfigureJoint(&s->joints);
     handle->pos = s->joints.data[pivot].pos;
     StickfigureEdge* edge = array_append_StickfigureEdge(&s->edges);
-    edge->from = pivot;
-    edge->to = ret;
-    edge->type = type;
+    *edge = (StickfigureEdge) {
+        .from = pivot,
+        .to = ret,
+        .type = type
+    };
     return edge;
 }
 
@@ -62,4 +65,21 @@ float PivotGetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, P
     }
     *joint = min;
     return sqrtf(min_distance2);
+}
+
+unsigned int PivotFindPredecessor(Stickfigure* s, unsigned int joint) {
+    foreach(s->edges, e, StickfigureEdge) {
+        if(e->to == joint)
+            return e->from;
+    }
+    return -1;
+}
+
+void PivotMoveJoint(Stickfigure_array_t stickfigures, PivotIndex joint, Vector2 start, float angle) {
+    unsigned int pred = PivotFindPredecessor(&stickfigures.data[joint.figure], joint.joint);
+    Vector2 pivot = stickfigures.data[joint.figure].joints.data[joint.joint].pos;
+    Vector2 handle = stickfigures.data[joint.figure].joints.data[pred].pos;
+    Vector2 edge = Vector2Subtract(handle, pivot);
+    Vector2 edge2 = Vector2Rotate(edge, angle);
+    stickfigures.data[joint.figure].joints.data[joint.joint].pos = Vector2Add(pivot, edge2);
 }
