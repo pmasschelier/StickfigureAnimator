@@ -222,9 +222,7 @@ void HandleCreateStickfigure(RendererData* data) {
     Clay_ElementData canvas = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
     printf("HandleCreateStickfigure (%f, %f, %f, %f)\n", canvas.boundingBox.x, canvas.boundingBox.y, canvas.boundingBox.width, canvas.boundingBox.height);
     Vector2 pivot = renderer_get_world_position(renderer_context, (Vector2){ canvas.boundingBox.width / 2.f, canvas.boundingBox.height / 2.f}, (Vector2) { canvas.boundingBox.width, canvas.boundingBox.height });
-    Stickfigure* s = CreateStickfigureFromPart(&data->stickfigure, data->stickType, pivot);
-    s->sticks.data[0].pivot.y -= 5.f;
-    s->sticks.data[0].handle.y += 5.f;
+    PivotCreateStickfigure(&data->stickfigure, data->stickType, (Vector2) { pivot.x, pivot.y - 5.f }, (Vector2) { pivot.x, pivot.y + 5.f });
 }
 
 typedef struct {

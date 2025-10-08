@@ -8,6 +8,11 @@
 #define ARRAY_MIN_CAPACITY 64
 #endif
 
+#define foreach(array, var, type)                                           \
+    for(unsigned index = 0; index < (array).length; index = (array).length) \
+    for(type* var = &(array).data[index];                                   \
+        index < (array.length) && (var = &(array).data[index]); index++)
+
 #define DEFINE_ARRAY_TYPE(type)                                             \
     typedef struct {                                                        \
         unsigned length;                                                    \
@@ -26,6 +31,13 @@
         }                                                                   \
         array->length += 1;                                                 \
         return &array->data[array->length - 1];                             \
+    }                                                                       \
+                                                                            \
+    static inline void array_free_ ## type(type ## _array_t* array) {       \
+        free(array->data);                                                  \
+        array->length = 0;                                                  \
+        array->capacity = 0;                                                \
+        array->data = nullptr;                                              \
     }
 
 

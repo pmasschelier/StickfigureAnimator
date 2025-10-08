@@ -1,81 +1,59 @@
 #include "pivot.h"
 #include "raylib.h"
+#include <assert.h>
 #include <math.h>
+#include <stdio.h>
 
-Stickfigure* CreateStickfigureFromPart(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot) {
+Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot, Vector2 handle) {
     Stickfigure* sf = array_append_Stickfigure(array);
     sf->joints = (StickfigureJoint_array_t){};
-    sf->sticks = (StickfigurePart_array_t){};
-    StickfigurePart* stick = array_append_StickfigurePart(&sf->sticks);
-    stick->pivot = pivot;
-    stick->handle = pivot;
-    stick->handles = nullptr;
-    stick->handle_count = 0;
-    stick->type = type;
+    sf->edges = (StickfigureEdge_array_t){};
+    StickfigureEdge* edge = array_append_StickfigureEdge(&sf->edges);
+    edge->from = 0;
+    edge->to = 1;
+    edge->type = type;
+    StickfigureJoint* ppivot = array_append_StickfigureJoint(&sf->joints);
+    ppivot->pos = pivot;
+    StickfigureJoint* phandle = array_append_StickfigureJoint(&sf->joints);
+    phandle->pos = handle;
     return sf;
 }
 
-StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, StickfigurePartType type, unsigned part, unsigned handle) {
-    Vector2 position;
-    if(handle == 0)
-        position = stickfigure->sticks.data[part].pivot;
-    else if(handle == 1)
-        position = stickfigure->sticks.data[part].handle;
-    else
-        position = stickfigure->sticks.data[part].handles[handle - 2];
-    StickfigureJoint* joint = array_append_StickfigureJoint(&stickfigure->joints);
-    joint->sticks[0] = part;
-    joint->handles[0] = handle;
-    joint->sticks[1] = stickfigure->sticks.length;
-    joint->handles[1] = 0;
-    StickfigurePart* stick = array_append_StickfigurePart(&stickfigure->sticks);
-    stick->type = type;
-    stick->pivot = position;
-    stick->handle = position;
-    stick->handle_count = 0;
-    return stick;
+StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot) {
+    fprintf(
+        stderr, "s = %p, pivot = %d, s->joint.length = %d\n", s, pivot, s->joints.length);
+    assert(s && pivot < s->joints.length);
+    int ret = s->joints.length;
+    StickfigureJoint* handle = array_append_StickfigureJoint(&s->joints);
+    handle->pos = s->joints.data[pivot].pos;
+    StickfigureEdge* edge = array_append_StickfigureEdge(&s->edges);
+    edge->from = pivot;
+    edge->to = ret;
+    edge->type = type;
+    return edge;
+}
+
+void PivotFreeAll(Stickfigure_array_t* array) {
+    for(unsigned i = 0; i < array->length; i++) {
+        array_free_StickfigureEdge(&array->data[i].edges);
+        array_free_StickfigureJoint(&array->data[i].joints);
+    }
+    array_free_Stickfigure(array);
 }
 
 static inline float distance2(Vector2 a, Vector2 b) {
     return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
 }
 
-static inline float min(float a, float b) {
-    return a < b ? a : b;
-}
-
-float GetNearestJointPart(StickfigurePart* part, Vector2 position, unsigned* handle) {
-    float dist_pivot = distance2(position, part->pivot);
-    float dist_handle = distance2(position, part->handle);
-    float d;
-    unsigned d_index;
-    if(dist_pivot < dist_handle) {
-        d = dist_pivot;
-        d_index = 0;
-    } else {
-        d = dist_handle;
-        d_index = 1;
-    }
-    for (unsigned i = 0; i < part->handle_count; i++) {
-        dist_handle = distance2(position, part->handles[i]);
-        if(dist_handle < d) {
-            d = dist_handle;
-            d_index = 2 + i;
-        }
-    }
-    *handle = d_index;
-    return d;
-}
-
-float GetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotIndex* joint)
+float PivotGetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotIndex* joint)
 {
-    if(stickfigures.length == 0 || stickfigures.data[0].sticks.length == 0)
+    if(stickfigures.length == 0 || stickfigures.data[0].joints.length == 0)
         return 0.f;
     PivotIndex i = {}, min = {};
-    float min_distance2 = GetNearestJointPart(&stickfigures.data[0].sticks.data[0], position, &min.handle);
-    for(i.figure = 0, i.part = 1; i.figure < stickfigures.length; i.figure++, i.part = 0) {
-        for(; i.part < stickfigures.data[i.figure].sticks.length; i.part++) {
-            float dist = GetNearestJointPart(&stickfigures.data[i.figure].sticks.data[i.part], position, &i.handle);
+    float min_distance2 = distance2(stickfigures.data[0].joints.data[0].pos, position);
+    for(i.figure = 0, i.joint = 1; i.figure < stickfigures.length; i.figure++, i.joint = 0) {
+        for(; i.joint < stickfigures.data[i.figure].joints.length; i.joint++) {
+            float dist  = distance2(stickfigures.data[i.figure].joints.data[i.joint].pos, position);
             if(dist < min_distance2) {
                 min_distance2 = dist;
                 min = i;
@@ -84,21 +62,4 @@ float GetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotI
     }
     *joint = min;
     return sqrtf(min_distance2);
-}
-
-Vector2* GetHandlePosition(Stickfigure_array_t stickfigures, PivotIndex index) {
-    Vector2 joint = {};
-    if(index.figure >= stickfigures.length)
-        return nullptr;
-    Stickfigure* s = &stickfigures.data[index.figure];
-    if(index.part >= s->sticks.length)
-        return nullptr;
-    StickfigurePart* p = &s->sticks.data[index.part];
-    if(index.handle == 0)
-        return &p->pivot;
-    if(index.handle == 1)
-        return &p->handle;
-    if(index.handle >= 2 + p->handle_count)
-        return nullptr;
-    return &p->handles[index.handle - 2];
 }

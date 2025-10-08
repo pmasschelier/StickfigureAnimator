@@ -37,77 +37,53 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
   Clay_ElementData elementData = Clay_GetElementData(elementId);
   /* Rectangle defaultViewport = {} */
   Vector2 canvasPosition = {
-        .x = pointerInfo.position.x - elementData.boundingBox.x,
-        .y = elementData.boundingBox.height - (pointerInfo.position.y - elementData.boundingBox.y)
+      .x = pointerInfo.position.x - elementData.boundingBox.x,
+      .y = elementData.boundingBox.height -
+           (pointerInfo.position.y - elementData.boundingBox.y),
   };
-  Vector2 resolution = { elementData.boundingBox.width, elementData.boundingBox.height };
-  Vector2 worldPos = renderer_get_world_position(renderer_context, canvasPosition, resolution);
+  Vector2 resolution = {
+      elementData.boundingBox.width,
+      elementData.boundingBox.height,
+  };
+  Vector2 worldPos =
+      renderer_get_world_position(renderer_context, canvasPosition, resolution);
   PivotIndex nearestjoint;
-  float dist = GetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
+  float dist = PivotGetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
   bool isOnJoint = data->stickfigure.length > 0 && dist < data->pivotRadius;
 
   switch (pointerInfo.state) {
   case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
-        switch (data->mode) {
-        case NORMAL:
-            if(!(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
-                data->currentHandle = GetHandlePosition(data->stickfigure, nearestjoint);
-            }
-            break;
-        default:
-            break;
-        }
-        break;
-  case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
-    printf("MODE: %d\n", data->mode);
-    for (unsigned i = 0; i < data->stickfigure.length; i++) {
-      printf("Stickfigure nº%d\n", i);
-      for (unsigned j = 0; j < data->stickfigure.data[i].sticks.length; j++) {
-        StickfigurePart *part = &data->stickfigure.data[i].sticks.data[j];
-        printf("(%f, %f) - (%f, %f)\n", part->pivot.x, part->pivot.y,
-               part->handle.x, part->handle.y);
-      }
-    }
     switch (data->mode) {
     case NORMAL:
-        data->currentHandle = nullptr;
-        if(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
-            if (isOnJoint) {
-                StickfigurePart *part = AddStickfigurePart(
-            &data->stickfigure.data[nearestjoint.figure],
-                    data->stickType, nearestjoint.part, nearestjoint.handle);
-                data->currentHandle = &part->handle;
-            }     
-        }
-        break;
-    case EDIT:
-      if (data->stickfigure.length > 0) {
-        printf("Clicked near (%d/%d, %d/%d, %d/%d): d = %f\n",
-               nearestjoint.figure, data->stickfigure.length, nearestjoint.part,
-               data->stickfigure.data[nearestjoint.figure].sticks.length,
-               nearestjoint.handle,
-               data->stickfigure.data[nearestjoint.figure]
-                       .sticks.data[nearestjoint.part]
-                       .handle_count +
-                   2,
-               dist);
+      if (!(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
+        data->currentHandle = &data->stickfigure.data[nearestjoint.figure].joints.data[nearestjoint.joint].pos;
       }
-      if (isOnJoint) {
-        StickfigurePart *part = AddStickfigurePart(
-    &data->stickfigure.data[nearestjoint.figure],
-            data->stickType, nearestjoint.part, nearestjoint.handle);
-        data->currentHandle = &part->handle;
-      } else {
-        Stickfigure *sf = CreateStickfigureFromPart(&data->stickfigure,
-                                                    data->stickType, worldPos);
-        printf("(%f, %f)\n", worldPos.x, worldPos.y);
-        data->currentHandle = &sf->sticks.data[0].handle;
-      }
-      data->mode = CLOSE_EDIT;
       break;
-    case CLOSE_EDIT:
-      data->mode = EDIT;
+    default:
+      break;
+    }
+    break;
+  case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
+    printf("MODE: %d\n", data->mode);
+    /* for (unsigned i = 0; i < data->stickfigure.length; i++) { */
+    /*   printf("Stickfigure nº%d\n", i); */
+    /*   for (unsigned j = 0; j < data->stickfigure.data[i].sticks.length; j++) { */
+    /*     StickfigurePart *part = &data->stickfigure.data[i].sticks.data[j]; */
+    /*     printf("(%f, %f) - (%f, %f)\n", part->pivot.x, part->pivot.y, */
+    /*            part->handle.x, part->handle.y); */
+    /*   } */
+    /* } */
+    switch (data->mode) {
+    case NORMAL:
       data->currentHandle = nullptr;
+      if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
+        if (isOnJoint) {
+          StickfigureEdge *part = PivotAddStick(
+              &data->stickfigure.data[nearestjoint.figure], data->stickType,
+              nearestjoint.joint);
+          data->currentHandle = &data->stickfigure.data[nearestjoint.figure].joints.data[part->to].pos;
+        }
+      }
       break;
     default:
       break;
@@ -151,7 +127,8 @@ void UpdateDrawFrame() {
       Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
   renderer_render(
       renderer_context, data.rendererData.stickfigure,
-      (Vector2){canvasData.boundingBox.width, canvasData.boundingBox.height}, data.rendererData.pivotRadius);
+      (Vector2){canvasData.boundingBox.width, canvasData.boundingBox.height},
+      data.rendererData.pivotRadius);
   BeginDrawing();
   ClearBackground(BLACK);
   /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */

@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "array.h"
 #include "raymath.h"
 #include "rlgl.h"
 #include "src/pivot.h"
@@ -198,18 +199,17 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     if(stickfigures.length > 0) {
         ssbos = malloc(stickfigures.length * sizeof(GLuint));
         glCreateBuffers(stickfigures.length, ssbos);
-        for (unsigned i = 0; i < stickfigures.length; i++) {
-            Stickfigure* stickfigure = &stickfigures.data[i];
-            glNamedBufferStorage(ssbos[i], stickfigure->sticks.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
-            SSBOStick* map = glMapNamedBuffer(ssbos[i], GL_WRITE_ONLY);
-            for(unsigned i = 0; i < stickfigure->sticks.length; i++) {
-                map[i].start = stickfigure->sticks.data[i].pivot;
-                map[i].end = stickfigure->sticks.data[i].handle;
-                map[i].color = (Vector4) { 0.f, 0.f, 0.f, 1.f};
-                map[i].type = stickfigure->sticks.data[i].type;
+        foreach(stickfigures, stickfigure, Stickfigure) {
+            glNamedBufferStorage(ssbos[index], stickfigure->edges.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
+            SSBOStick* map = glMapNamedBuffer(ssbos[index], GL_WRITE_ONLY);
+            for(unsigned i = 0; i < stickfigure->edges.length; i++) {
+                map[i].start = stickfigure->joints.data[stickfigure->edges.data[i].from].pos;
+                map[i].end = stickfigure->joints.data[stickfigure->edges.data[i].to].pos;
+                map[i].type = stickfigure->edges.data[i].type;
+                map[i].color = (Vector4) { 0.f, -1.f, 0.f, 1.f};
                 map[i].thickness = 1.f;
             }
-            glUnmapNamedBuffer(ssbos[i]);
+            glUnmapNamedBuffer(ssbos[index]);
         }
     }
 
