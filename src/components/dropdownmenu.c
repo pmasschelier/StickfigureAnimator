@@ -8,7 +8,7 @@ extern uint16_t selected_font;
 void RenderDropdownMenuItem(
     Clay_String text,
     ItemData data,
-    Callback_t onClick,
+    Callback_t* onClick,
     Arena *arena
 ) {
     Clay_CornerRadius cornerRadius = {};
@@ -28,12 +28,12 @@ void RenderDropdownMenuItem(
     CLAY(
         { .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } } }
     ) {
-        if (onClick.fn) {
+        if (onClick) {
             if (Clay_Hovered()) {
                 background = (Clay_Color){ 0xFF, 0xFF, 0xFF, 0x33 };
                 clickable_hovered = true;
             }
-            SetButtonCallbacks(arena, (ButtonData){ .onMouseUp = &onClick });
+            SetButtonCallbacks(arena, (ButtonData){ .onMouseUp = onClick });
         }
         CLAY( {
             .layout = {

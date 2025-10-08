@@ -45,6 +45,15 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
   PivotIndex nearestjoint;
   float dist = GetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
   switch (pointerInfo.state) {
+  case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
+        switch (data->mode) {
+        case NORMAL:
+            data->currentHandle = GetHandlePosition(data->stickfigure, nearestjoint);
+            break;
+        default:
+            break;
+        }
+        break;
   case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
     printf("MODE: %d\n", data->mode);
     for (unsigned i = 0; i < data->stickfigure.length; i++) {
@@ -56,6 +65,9 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
       }
     }
     switch (data->mode) {
+    case NORMAL:
+        data->currentHandle = nullptr;
+        break;
     case EDIT:
       if (data->stickfigure.length > 0) {
         printf("Clicked near (%d/%d, %d/%d, %d/%d): d = %f\n",
@@ -83,22 +95,17 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
       break;
     case CLOSE_EDIT:
       data->mode = EDIT;
+      data->currentHandle = nullptr;
       break;
     default:
       break;
     }
     break;
   default:
-    switch (data->mode) {
-    case CLOSE_EDIT:
-      if (data->currentHandle)
-        *data->currentHandle = worldPos;
-      break;
-    default:
-      break;
-    }
     break;
   }
+  if (data->currentHandle)
+    *data->currentHandle = worldPos;
 }
 
 void UpdateDrawFrame() {

@@ -10,7 +10,7 @@ void RenderCanvas(Clay_ElementId id, OnHoverFn onHoverFunction, void* hoverFnDat
 void RenderDropdownMenuItem(
     Clay_String text,
     ItemData data,
-    Callback_t onClick,
+    Callback_t* onClick,
     Arena *arena
 );
 void RenderMenuBarButton(
@@ -18,8 +18,11 @@ void RenderMenuBarButton(
     Clay_ElementId buttonId,
     Clay_ElementId menuId,
     bool *menuVisible,
-    void RenderMenu(void *, Callback_t onMouseReleased),
-    void *priv
+    void RenderMenu(void *, Callback_t* onMouseReleased),
+    void *priv,
+    Arena* arena
 );
+
+void RenderIconButton(Clay_ElementId id, Arena* arena, Texture2D* icon, Callback_t* onMouseUp);
 
 #endif // !COMPONENTS_H

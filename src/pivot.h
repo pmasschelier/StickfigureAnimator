@@ -41,6 +41,6 @@ DEFINE_ARRAY_TYPE(Stickfigure)
 StickfigurePart* AddStickfigurePart(Stickfigure* stickfigure, StickfigurePartType type, unsigned part, unsigned handle);
 Stickfigure* CreateStickfigureFromPart(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot);
 float GetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotIndex* joint);
-Vector2 GetHandlePosition(Stickfigure_array_t stickfigures, PivotIndex index);
+Vector2* GetHandlePosition(Stickfigure_array_t stickfigures, PivotIndex index);
 
 #endif // !PIVOT_H

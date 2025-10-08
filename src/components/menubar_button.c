@@ -12,8 +12,9 @@ void RenderMenuBarButton(
     Clay_ElementId buttonId,
     Clay_ElementId menuId,
     bool *menuVisible,
-    void RenderMenu(void *, Callback_t onMouseReleased),
-    void *priv
+    void RenderMenu(void *, Callback_t* onMouseReleased),
+    void *priv,
+    Arena* arena
 ) {
     CLAY(
         { .id = buttonId,
@@ -63,7 +64,7 @@ void RenderMenuBarButton(
                     .backgroundColor = {40, 40, 40, 255 },
                     .cornerRadius = {0.f, 8.f, 8.f, 8.f},
                 }) {
-                    RenderMenu(priv, (Callback_t) {.fn = (CallbackFn)CloseMenu, .params = menuVisible});
+                    RenderMenu(priv, CallbackCreate(arena, (CallbackFn)CloseMenu, menuVisible));
                 }
             }
         }

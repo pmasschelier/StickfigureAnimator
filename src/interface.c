@@ -3,14 +3,14 @@
 #include "components/components.h"
 #include "components/utils.h"
 #include "pivot.h"
+#include "raylib.h"
 #include "renderer/renderer.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 extern RendererContext* renderer_context;
-
-constexpr Clay_Color COLOR_WHITE = { 255, 255, 255, 255 };
 
 typedef struct {
     Clay_String title;
@@ -204,10 +204,23 @@ MainLayoutData MainLayout_Initialize() {
     void *memory = malloc(COMPONENT_ARENA_SIZE);
     assert(memory);
     MainLayoutData data = { .arena = arena_init(COMPONENT_ARENA_SIZE, memory) };
+    
+    const char filename[512];
+    for(unsigned i = 0; i < ICON_COUNT; i++) {
+        snprintf(filename, 512, RESOURCE_PATH "resources/icons/%s", ICON_FILENAMES[i]);
+        data.icons[i] = LoadTexture(filename);
+    }
     return data;
 }
 
-void EditButtonMouseDownHandler() { printf("Button clicked\n"); }
+void HandleCreateStickfigure(RendererData* data) {
+    Clay_ElementData canvas = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
+    printf("HandleCreateStickfigure (%f, %f, %f, %f)\n", canvas.boundingBox.x, canvas.boundingBox.y, canvas.boundingBox.width, canvas.boundingBox.height);
+    Vector2 pivot = renderer_get_world_position(renderer_context, (Vector2){ canvas.boundingBox.width / 2.f, canvas.boundingBox.height / 2.f}, (Vector2) { canvas.boundingBox.width, canvas.boundingBox.height });
+    Stickfigure* s = CreateStickfigureFromPart(&data->stickfigure, data->stickType, pivot);
+    s->sticks.data[0].pivot.y -= 5.f;
+    s->sticks.data[0].handle.y += 5.f;
+}
 
 typedef struct {
     EditMode *mode;
@@ -224,20 +237,20 @@ void HandleChangeMode(void *data) {
     printf("New mode: %d\n", *modedata->mode);
 }
 
-void RenderFileMenu(void *priv, Callback_t onMouseUp) {
+void RenderFileMenu(void *priv, Callback_t* onMouseUp) {
     Arena *arena = priv;
     RenderDropdownMenuItem(
-        CLAY_STRING("New"), (ItemData){ 3, 0 }, (Callback_t){}, NULL
+        CLAY_STRING("New"), (ItemData){ 3, 0 }, nullptr, nullptr
     );
     RenderDropdownMenuItem(
-        CLAY_STRING("Open"), (ItemData){ 3, 1 }, (Callback_t){}, NULL
+        CLAY_STRING("Open"), (ItemData){ 3, 1 }, nullptr, nullptr
     );
     RenderDropdownMenuItem(
-        CLAY_STRING("Close"), (ItemData){ 3, 2 }, (Callback_t){}, NULL
+        CLAY_STRING("Close"), (ItemData){ 3, 2 }, nullptr, nullptr
     );
 }
 
-void RenderCreateMenu(void *priv, Callback_t onMouseUp) {
+void RenderCreateMenu(void *priv, Callback_t* onMouseUp) {
     MainLayoutData *data = priv;
     HandleChangeModeData *modes =
         arena_allocate(&data->arena, 2, sizeof(HandleChangeModeData));
@@ -250,14 +263,14 @@ void RenderCreateMenu(void *priv, Callback_t onMouseUp) {
     RenderDropdownMenuItem(
         CLAY_STRING("Stick"),
         (ItemData){ 2, 0 },
-        (Callback_t){ HandleChangeMode, &modes[0], &onMouseUp},
+        CallbackChain(&data->arena, onMouseUp, HandleChangeMode, &modes[0]),
         &data->arena
     );
     modes[1].stickTypeRequested = STICKFIGURE_RING;
     RenderDropdownMenuItem(
         CLAY_STRING("Circle"),
         (ItemData){ 2, 1 },
-        (Callback_t){ HandleChangeMode, &modes[1], &onMouseUp},
+        CallbackChain(&data->arena, onMouseUp, HandleChangeMode, &modes[1]),
         &data->arena
     );
 }
@@ -269,8 +282,6 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
 
     Clay_Sizing layoutExpand = { .width = CLAY_SIZING_GROW(0),
                                  .height = CLAY_SIZING_GROW(0) };
-
-    Clay_Color contentBackgroundColor = { 90, 90, 90, 255 };
 
     // Build UI here
     CLAY({
@@ -287,39 +298,53 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
         CLAY({
             .id = CLAY_ID("HeaderBar"),
             .layout = {
+                .layoutDirection = CLAY_TOP_TO_BOTTOM,
                 .sizing = {
-                    .height = CLAY_SIZING_FIXED(60),
+                    .height = CLAY_SIZING_FIT(60),
                     .width = CLAY_SIZING_GROW(0),
                 },
                 .padding = { 16, 16, 0, 0 },
                 .childGap = 16,
                 .childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
              },
-            .backgroundColor = contentBackgroundColor,
+            .backgroundColor = SECONDARY_COLOR,
             .cornerRadius = {0.f, 0.f, 8.f, 8.f}
         }) {
-            RenderMenuBarButton(
-                CLAY_STRING("File"),
-                CLAY_ID("FileButton"),
-                CLAY_ID("FileMenu"),
-                &data->isMenuBarButtonOpen[0],
-                RenderFileMenu,
-                &data->arena
-            );
-            RenderMenuBarButton(
-                CLAY_STRING("Create"),
-                CLAY_ID("CreateButton"),
-                CLAY_ID("CreateMenu"),
-                &data->isMenuBarButtonOpen[1],
-                RenderCreateMenu,
-                data
-            );
-            /* RenderButton(CLAY_STRING("Edit"), &editButton); */
-            /* CLAY({ .layout = { .sizing = { CLAY_SIZING_GROW(0) } } }) {} */
-            /* RenderButton(CLAY_STRING("Upload"), NULL); */
-            /* RenderButton(CLAY_STRING("Media"), NULL); */
-            /* RenderButton(CLAY_STRING("Support"), NULL); */
+            CLAY({
+                .id = CLAY_ID("MenuBar"),
+             }) {
+                RenderMenuBarButton(
+                    CLAY_STRING("File"),
+                    CLAY_ID("FileButton"),
+                    CLAY_ID("FileMenu"),
+                    &data->isMenuBarButtonOpen[0],
+                    RenderFileMenu,
+                    &data->arena,
+                    &data->arena
+                );
+                RenderMenuBarButton(
+                    CLAY_STRING("Create"),
+                    CLAY_ID("CreateButton"),
+                    CLAY_ID("CreateMenu"),
+                    &data->isMenuBarButtonOpen[1],
+                    RenderCreateMenu,
+                    data,
+                    &data->arena
+                );
+            }
+
+            CLAY({
+                .id = CLAY_ID("ToolBar"),
+                .layout = { .padding = CLAY_PADDING_ALL(8) }
+            }) {
+                RenderIconButton(
+                CLAY_ID("CreateStickfigureIcon"),
+            &data->arena,
+            &data->icons[ICON_CREATE_STICKFIGURE],
+            CallbackCreate(&data->arena, (CallbackFn)HandleCreateStickfigure, &data->rendererData));
+            }
         }
+
 
         CLAY(
             {
@@ -329,7 +354,7 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
         ) {
             CLAY(
                 { .id = CLAY_ID("Sidebar"),
-                  .backgroundColor = contentBackgroundColor,
+                  .backgroundColor = SECONDARY_COLOR,
                   .layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM,
                               .padding = CLAY_PADDING_ALL(16),
                               .childGap = 8,

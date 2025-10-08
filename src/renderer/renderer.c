@@ -87,7 +87,7 @@ RendererContext* renderer_init(Rectangle worldViewport) {
         return nullptr;
     }
 
-    state->joint_radius = .3f;
+    state->joint_radius = 1.f;
     state->locations.joint_radius = GetShaderLocation(state->stickfigureShader, "joint_radius");
     state->locations.viewport = GetShaderLocation(state->postprocessShader, "viewport");
 

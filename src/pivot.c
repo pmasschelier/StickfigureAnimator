@@ -86,19 +86,19 @@ float GetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotI
     return sqrtf(min_distance2);
 }
 
-Vector2 GetHandlePosition(Stickfigure_array_t stickfigures, PivotIndex index) {
+Vector2* GetHandlePosition(Stickfigure_array_t stickfigures, PivotIndex index) {
     Vector2 joint = {};
     if(index.figure >= stickfigures.length)
-        return joint;
+        return nullptr;
     Stickfigure* s = &stickfigures.data[index.figure];
     if(index.part >= s->sticks.length)
-        return joint;
+        return nullptr;
     StickfigurePart* p = &s->sticks.data[index.part];
     if(index.handle == 0)
-        return p->pivot;
+        return &p->pivot;
     if(index.handle == 1)
-        return p->handle;
+        return &p->handle;
     if(index.handle >= 2 + p->handle_count)
-        return joint;
-    return p->handles[index.handle - 2];
+        return nullptr;
+    return &p->handles[index.handle - 2];
 }
