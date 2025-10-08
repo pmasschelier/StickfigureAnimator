@@ -124,7 +124,7 @@ static Rectangle renderer_get_effective_viewport(Rectangle worldViewport, Vector
     return effectiveViewport;
 }
 
-void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res) {
+void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
     if(state->rendertexture.id == 0) {
         state->rendertexture = LoadRenderTexture(res.x, res.y);
     } else if(state->rendertexture.texture.width != res.x
@@ -191,7 +191,7 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
         float padding[2];
     } SSBOStick;
 
-    SetShaderValue(state->stickfigureShader, state->locations.joint_radius, &state->joint_radius, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(state->stickfigureShader, state->locations.joint_radius, &pivotRadius, SHADER_UNIFORM_FLOAT);
     SetShaderValue(state->postprocessShader, state->locations.viewport, &state->worldViewport, SHADER_UNIFORM_VEC4);
     
     GLuint* ssbos;

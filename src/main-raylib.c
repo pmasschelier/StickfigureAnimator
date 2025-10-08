@@ -44,11 +44,15 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
   Vector2 worldPos = renderer_get_world_position(renderer_context, canvasPosition, resolution);
   PivotIndex nearestjoint;
   float dist = GetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
+  bool isOnJoint = data->stickfigure.length > 0 && dist < data->pivotRadius;
+
   switch (pointerInfo.state) {
   case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
         switch (data->mode) {
         case NORMAL:
-            data->currentHandle = GetHandlePosition(data->stickfigure, nearestjoint);
+            if(!(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))) {
+                data->currentHandle = GetHandlePosition(data->stickfigure, nearestjoint);
+            }
             break;
         default:
             break;
@@ -67,6 +71,14 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     switch (data->mode) {
     case NORMAL:
         data->currentHandle = nullptr;
+        if(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
+            if (isOnJoint) {
+                StickfigurePart *part = AddStickfigurePart(
+            &data->stickfigure.data[nearestjoint.figure],
+                    data->stickType, nearestjoint.part, nearestjoint.handle);
+                data->currentHandle = &part->handle;
+            }     
+        }
         break;
     case EDIT:
       if (data->stickfigure.length > 0) {
@@ -80,7 +92,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                    2,
                dist);
       }
-      if (data->stickfigure.length > 0 && dist < 3.f) {
+      if (isOnJoint) {
         StickfigurePart *part = AddStickfigurePart(
     &data->stickfigure.data[nearestjoint.figure],
             data->stickType, nearestjoint.part, nearestjoint.handle);
@@ -139,7 +151,7 @@ void UpdateDrawFrame() {
       Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
   renderer_render(
       renderer_context, data.rendererData.stickfigure,
-      (Vector2){canvasData.boundingBox.width, canvasData.boundingBox.height});
+      (Vector2){canvasData.boundingBox.width, canvasData.boundingBox.height}, data.rendererData.pivotRadius);
   BeginDrawing();
   ClearBackground(BLACK);
   /* rlViewport(0, 0, GetScreenWidth(), GetScreenHeight()); */

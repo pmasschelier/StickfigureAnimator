@@ -28,16 +28,21 @@ typedef struct {
     StickfigurePartType stickType;
     Vector2 offset;
     float zoom;
+    float pivotRadius;
 } RendererData;
 
 
 typedef enum {
     ICON_CREATE_STICKFIGURE,
+    ICON_STICK,
+    ICON_RING,
     ICON_COUNT,
 } IconName;
 
 constexpr char ICON_FILENAMES[ICON_COUNT][128] = {
-    "create-stickfigure.png"
+    "create-stickfigure.png",
+    "stick.png",
+    "ring.png",
 };
 
 typedef struct {

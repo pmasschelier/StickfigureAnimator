@@ -203,7 +203,12 @@ MainLayoutData MainLayout_Initialize() {
     const size_t COMPONENT_ARENA_SIZE = 4096;
     void *memory = malloc(COMPONENT_ARENA_SIZE);
     assert(memory);
-    MainLayoutData data = { .arena = arena_init(COMPONENT_ARENA_SIZE, memory) };
+    MainLayoutData data = {
+        .arena = arena_init(COMPONENT_ARENA_SIZE, memory),
+        .rendererData = {
+            .pivotRadius = 1.f
+        }
+    };
     
     const char filename[512];
     for(unsigned i = 0; i < ICON_COUNT; i++) {
@@ -275,8 +280,22 @@ void RenderCreateMenu(void *priv, Callback_t* onMouseUp) {
     );
 }
 
+typedef struct {
+    StickfigurePartType* type;
+    StickfigurePartType requested;
+} HandleChangeStickTypeData;
+
+void HandleChangeStickType(HandleChangeStickTypeData* data) {
+    *data->type = data->requested;
+}
+
 Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
     arena_reset(&data->arena);
+    HandleChangeStickTypeData* modes = arena_allocate(&data->arena, 2, sizeof(HandleChangeStickTypeData));
+    for (unsigned i = 0; i < 2; i++) {
+        modes[i].type = &data->rendererData.stickType;
+        modes[i].requested = i;
+    }
 
     Clay_BeginLayout();
 
@@ -338,10 +357,23 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
                 .layout = { .padding = CLAY_PADDING_ALL(8) }
             }) {
                 RenderIconButton(
-                CLAY_ID("CreateStickfigureIcon"),
-            &data->arena,
-            &data->icons[ICON_CREATE_STICKFIGURE],
-            CallbackCreate(&data->arena, (CallbackFn)HandleCreateStickfigure, &data->rendererData));
+                    CLAY_ID("CreateStickfigureIcon"),
+                    &data->arena,
+                    &data->icons[ICON_CREATE_STICKFIGURE],
+                    CallbackCreate(&data->arena, (CallbackFn)HandleCreateStickfigure, &data->rendererData)
+                );
+                RenderIconButton(
+                    CLAY_ID("StickIcon"),
+                    &data->arena,
+                    &data->icons[ICON_STICK],
+                    CallbackCreate(&data->arena, (CallbackFn)HandleChangeStickType, &modes[0])
+                );
+                RenderIconButton(
+                    CLAY_ID("RingIcon"),
+                    &data->arena,
+                    &data->icons[ICON_RING],
+                    CallbackCreate(&data->arena, (CallbackFn)HandleChangeStickType, &modes[1])
+                );
             }
         }
 
