@@ -1,4 +1,3 @@
-#include "arena.h"
 #include "utils.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -9,7 +8,7 @@ void RenderDropdownMenuItem(
     Clay_String text,
     ItemData data,
     Callback_t* onClick,
-    Arena *arena
+    ComponentContext* context
 ) {
     Clay_CornerRadius cornerRadius = {};
     Clay_Color background = {};
@@ -31,9 +30,9 @@ void RenderDropdownMenuItem(
         if (onClick) {
             if (Clay_Hovered()) {
                 background = (Clay_Color){ 0xFF, 0xFF, 0xFF, 0x33 };
-                clickable_hovered = true;
+                context->clickablHovered = true;
             }
-            SetButtonCallbacks(arena, (ButtonData){ .onMouseUp = onClick });
+            SetButtonCallbacks(context->arena, (ButtonData){ .onMouseUp = onClick });
         }
         CLAY( {
             .layout = {

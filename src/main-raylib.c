@@ -12,7 +12,7 @@
 #include "clay/clay.h"
 #include "clay/renderers/raylib/clay_renderer_raylib.c"
 
-MainLayoutData data;
+InterfaceData* data;
 RendererContext *renderer_context;
 GLFWwindow *window;
 
@@ -130,19 +130,18 @@ void UpdateDrawFrame() {
         Clay_SetDebugModeEnabled(debugEnabled);
     }
     if (IsKeyPressed(KEY_ESCAPE)) {
-        auto hand = &data.rendererData.hand;
-        Stickfigure* s = &data.rendererData.stickfigure.data[hand->edge.figure];
-        switch (data.rendererData.mode) {
+        auto hand = &data->rendererData.hand;
+        Stickfigure* s = &data->rendererData.stickfigure.data[hand->edge.figure];
+        switch (data->rendererData.mode) {
             case CREATE_STICK:
-                data.rendererData.hand.holding = false;
-                printf("%d/%d\n", hand->edge.edge, s->edges.length);
+                data->rendererData.hand.holding = false;
                 PivotRemoveEdge(s, hand->edge.edge);
-                data.rendererData.mode = NORMAL;
+                data->rendererData.mode = NORMAL;
                 break;
             case MOVE_STICK:
-                data.rendererData.hand.holding = false;
+                data->rendererData.hand.holding = false;
                 PivotMoveEdge(s, hand->edge.edge, hand->initial.angle, hand->initial.length);
-                data.rendererData.mode = NORMAL;
+                data->rendererData.mode = NORMAL;
                 break;
             default:
                 break;
@@ -160,7 +159,7 @@ void UpdateDrawFrame() {
                                 GetFrameTime());
     // Generate the auto layout for rendering
     clickable_hovered = false;
-    Clay_RenderCommandArray renderCommands = MainLayout_CreateLayout(&data);
+    Clay_RenderCommandArray renderCommands = InterfaceLayout(data);
     if (clickable_hovered)
         SetMouseCursor(MOUSE_CURSOR_POINTING_HAND);
     else
@@ -169,9 +168,9 @@ void UpdateDrawFrame() {
     Clay_ElementData canvasData =
         Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
     renderer_render(
-        renderer_context, data.rendererData.stickfigure,
+        renderer_context, data->rendererData.stickfigure,
         (Vector2){canvasData.boundingBox.width, canvasData.boundingBox.height},
-        data.rendererData.pivotRadius);
+        data->rendererData.pivotRadius);
     BeginDrawing();
     ClearBackground(BLACK);
     Clay_Raylib_Render(renderCommands, fonts);
@@ -218,7 +217,7 @@ int main(void) {
     if (renderer_context == nullptr)
         return EXIT_FAILURE;
 
-    data = MainLayout_Initialize();
+    data = InterfaceInit();
 
     fonts[FONT_ID_BODY_24] =
         LoadFontEx(RESOURCE_PATH "resources/Roboto-Regular.ttf", 24, 0, 400);
@@ -238,6 +237,7 @@ int main(void) {
             InitClay();
         UpdateDrawFrame();
     }
+    InterfaceDeinit(data);
     renderer_deinit(renderer_context);
     Clay_Raylib_Close();
     return 0;

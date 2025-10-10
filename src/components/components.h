@@ -3,6 +3,7 @@
 
 #include "raylib.h"
 #include "utils.h"
+#include "callback.h"
 #include "arena.h"
 
 
@@ -11,7 +12,7 @@ void RenderDropdownMenuItem(
     Clay_String text,
     ItemData data,
     Callback_t* onClick,
-    Arena *arena
+    ComponentContext* context
 );
 void RenderMenuBarButton(
     Clay_String title,
@@ -23,6 +24,6 @@ void RenderMenuBarButton(
     Arena* arena
 );
 
-void RenderIconButton(Clay_ElementId id, Arena* arena, Texture2D* icon, Callback_t* onMouseUp);
+void RenderIconButton(Clay_ElementId id, Texture2D* icon, Callback_t* onMouseUp, ComponentContext* context);
 
 #endif // !COMPONENTS_H

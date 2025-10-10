@@ -6,8 +6,10 @@
 #include "raylib.h"
 #include "renderer/renderer.h"
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 extern RendererContext* renderer_context;
@@ -48,7 +50,7 @@ void HandleSidebarInteraction(
     }
 }
 
-MainLayoutData MainLayout_Initialize() {
+InterfaceData* InterfaceInit() {
     documents.documents[0] = (Document){
         .title = CLAY_STRING("Squirrels"),
         .contents = CLAY_STRING(
@@ -203,17 +205,25 @@ MainLayoutData MainLayout_Initialize() {
     const size_t COMPONENT_ARENA_SIZE = 4096;
     void *memory = malloc(COMPONENT_ARENA_SIZE);
     assert(memory);
-    MainLayoutData data = {
-        .arena = arena_init(COMPONENT_ARENA_SIZE, memory),
+    InterfaceData* data = malloc(sizeof(InterfaceData) + COMPONENT_ARENA_SIZE);
+    *data = (InterfaceData){
+        .arena = arena_init(COMPONENT_ARENA_SIZE, data + 1),
         .rendererData = {
             .pivotRadius = 1.f
+        },
+        .context = {
+            .arena = &data->arena,
+            .clickablHovered = false,
+            .theme = {
+                .color = { PRIMARY_COLOR, (Clay_Color){}, SECONDARY_COLOR, (Clay_Color){} },
+            }
         }
     };
     
-    const char filename[512];
+    char filename[512];
     for(unsigned i = 0; i < ICON_COUNT; i++) {
         snprintf(filename, 512, RESOURCE_PATH "resources/icons/%s", ICON_FILENAMES[i]);
-        data.icons[i] = LoadTexture(filename);
+        data->icons[i] = LoadTexture(filename);
     }
     return data;
 }
@@ -249,7 +259,7 @@ void RenderFileMenu(void *priv, Callback_t* onMouseUp) {
 }
 
 void RenderCreateMenu(void *priv, Callback_t* onMouseUp) {
-    MainLayoutData *data = priv;
+    InterfaceData *data = priv;
     HandleChangeModeData *modes =
         arena_allocate(&data->arena, 2, sizeof(HandleChangeModeData));
     for (int i = 0; i < 2; i++) {
@@ -260,14 +270,14 @@ void RenderCreateMenu(void *priv, Callback_t* onMouseUp) {
         CLAY_STRING("Stick"),
         (ItemData){ 2, 0 },
         CallbackChain(&data->arena, onMouseUp, HandleChangeMode, &modes[0]),
-        &data->arena
+        &data->context
     );
     modes[1].stickTypeRequested = STICKFIGURE_RING;
     RenderDropdownMenuItem(
         CLAY_STRING("Circle"),
         (ItemData){ 2, 1 },
         CallbackChain(&data->arena, onMouseUp, HandleChangeMode, &modes[1]),
-        &data->arena
+        &data->context
     );
 }
 
@@ -280,7 +290,7 @@ void HandleChangeStickType(HandleChangeStickTypeData* data) {
     *data->type = data->requested;
 }
 
-Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
+Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
     arena_reset(&data->arena);
     HandleChangeStickTypeData* modes = arena_allocate(&data->arena, 2, sizeof(HandleChangeStickTypeData));
     for (unsigned i = 0; i < 2; i++) {
@@ -349,21 +359,21 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
             }) {
                 RenderIconButton(
                     CLAY_ID("CreateStickfigureIcon"),
-                    &data->arena,
                     &data->icons[ICON_CREATE_STICKFIGURE],
-                    CallbackCreate(&data->arena, (CallbackFn)HandleCreateStickfigure, &data->rendererData)
+                    CallbackCreate(&data->arena, (CallbackFn)HandleCreateStickfigure, &data->rendererData),
+                    &data->context
                 );
                 RenderIconButton(
                     CLAY_ID("StickIcon"),
-                    &data->arena,
                     &data->icons[ICON_STICK],
-                    CallbackCreate(&data->arena, (CallbackFn)HandleChangeStickType, &modes[0])
+                    CallbackCreate(&data->arena, (CallbackFn)HandleChangeStickType, &modes[0]),
+                    &data->context
                 );
                 RenderIconButton(
                     CLAY_ID("RingIcon"),
-                    &data->arena,
                     &data->icons[ICON_RING],
-                    CallbackCreate(&data->arena, (CallbackFn)HandleChangeStickType, &modes[1])
+                    CallbackCreate(&data->arena, (CallbackFn)HandleChangeStickType, &modes[1]),
+                    &data->context
                 );
             }
         }
@@ -453,4 +463,11 @@ Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data) {
             data->yOffset;
     }
     return renderCommands;
+}
+
+void InterfaceDeinit(InterfaceData* data) {
+    for(unsigned i = 0; i < ICON_COUNT; i++) {
+        UnloadTexture(data->icons[i]);
+    }
+    free(data);
 }

@@ -3,6 +3,7 @@
 
 #include "arena.h"
 #include "clay/clay.h"
+#include "components/utils.h"
 #include "raylib.h"
 #include "src/pivot.h"
 #include <stdint.h>
@@ -62,10 +63,13 @@ typedef struct {
     bool isMenuBarButtonOpen[MENUBAR_BUTTON_COUNT];
     RendererData rendererData;
     Texture2D icons[ICON_COUNT];
-} MainLayoutData;
+    ComponentContext context;
+} InterfaceData;
 
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);
-MainLayoutData MainLayout_Initialize();
-Clay_RenderCommandArray MainLayout_CreateLayout(MainLayoutData *data);
+
+InterfaceData* InterfaceInit();
+void InterfaceDeinit(InterfaceData* data);
+Clay_RenderCommandArray InterfaceLayout(InterfaceData *data);
 
 #endif // !INTERFACE_H

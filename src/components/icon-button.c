@@ -1,9 +1,9 @@
-#include "components/utils.h"
-#include "interface.h"
+#include "utils.h"
 #include "raylib.h"
-#include <stdio.h>
 
-void RenderIconButton(Clay_ElementId id, Arena* arena, Texture2D* icon, Callback_t* onMouseUp) {
+/* void RenderIconButtonGroup(Clay_ElementId id, Arena* arena, Texture2D* icons, Callback_t*) */
+
+void RenderIconButton(Clay_ElementId id, Texture2D* icon, Callback_t* onMouseUp, ComponentContext* context) {
     const float size = 32.f;
     Clay_BorderElementConfig border = { .color = { 0.f, 0.f, 0.f, 255.f }};
     if(Clay_PointerOver(id)) {
@@ -18,7 +18,7 @@ void RenderIconButton(Clay_ElementId id, Arena* arena, Texture2D* icon, Callback
          .cornerRadius = CLAY_CORNER_RADIUS(3.f)
     }) {
         if(onMouseUp)
-            SetButtonCallbacks(arena, (ButtonData) { .onMouseUp = onMouseUp });
+            SetButtonCallbacks(context->arena, (ButtonData) { .onMouseUp = onMouseUp });
         CLAY({
             .layout = {
                 .sizing = CLAY_SIZING_FIXED(size),
