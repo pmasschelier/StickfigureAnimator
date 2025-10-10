@@ -1,7 +1,6 @@
 #include "renderer.h"
 #include "arena.h"
 #include "array.h"
-#include "raymath.h"
 #include "rlgl.h"
 #include "src/pivot.h"
 #include "src/raylib.h"
@@ -16,6 +15,7 @@
 #include <stdlib.h>
 
 struct RendererContext {
+    Arena arena;
     Shader stickfigureShader;
     Shader postprocessShader;
     RenderTexture2D rendertexture;
@@ -76,7 +76,9 @@ MessageCallback( GLenum source,
 }
 
 RendererContext* renderer_init(Rectangle worldViewport) {
-    RendererContext* state = calloc(1, sizeof(RendererContext));
+    constexpr size_t ARENA_SIZE = 4096;
+    RendererContext* state = calloc(1, sizeof(RendererContext) + ARENA_SIZE);
+    state->arena = arena_init(ARENA_SIZE, state + 1);
     state->worldViewport = worldViewport;
     state->stickfigureShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/stick.frag");
     if (state->stickfigureShader.id == 0) {
@@ -103,6 +105,13 @@ RendererContext* renderer_init(Rectangle worldViewport) {
     glDebugMessageCallback( MessageCallback, 0 );
 
     return state;
+}
+
+void renderer_deinit(RendererContext *state) {
+    UnloadShader(state->stickfigureShader);
+    UnloadShader(state->postprocessShader);
+    UnloadRenderTexture(state->rendertexture);
+    free(state);
 }
 
 Texture2D* renderer_get_frame(RendererContext * state) {
@@ -134,13 +143,6 @@ typedef struct {
     GLfloat thickness;
     float padding[2];
 } SSBOStick;
-
-SSBOStick* renderer_compute_sticks(Arena* arena, Stickfigure* s) {
-    SSBOStick* ret = arena_allocate(arena, s->edges.length, sizeof(SSBOStick));
-    unsigned int index = 0;
-    
-    return ret;
-}
 
 void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
     if(state->rendertexture.id == 0) {
@@ -264,10 +266,4 @@ Vector2 renderer_get_world_position(RendererContext* context, Vector2 canvasPosi
         viewport.x + canvasPosition.x * scale.x,
         viewport.y + canvasPosition.y * scale.y,
     };
-}
-
-void renderer_deinit(RendererContext *state) {
-    UnloadShader(state->stickfigureShader);
-    UnloadRenderTexture(state->rendertexture);
-    free(state);
 }

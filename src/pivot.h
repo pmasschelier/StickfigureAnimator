@@ -36,6 +36,9 @@ typedef struct {
     unsigned to;
     StickfigurePartType type;
     double angle;
+    double rootAngle;
+    double length;
+    double thickness;
 } StickfigureEdge;
 
 typedef struct {
@@ -46,6 +49,7 @@ DEFINE_ARRAY_TYPE(StickfigureEdge)
 DEFINE_ARRAY_TYPE(StickfigureJoint)
 
 typedef struct {
+    Vector2 position;
     StickfigureJoint_array_t joints;
     StickfigureEdge_array_t edges;
 } Stickfigure;
@@ -53,13 +57,22 @@ typedef struct {
 typedef struct {
     unsigned figure;
     unsigned joint;
-} PivotIndex;
+} PivotJointIndex;
+
+typedef struct {
+    unsigned figure;
+    unsigned edge;
+} PivotEdgeIndex;
 
 DEFINE_ARRAY_TYPE(Stickfigure)
 
-Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot, Vector2 handle);
-StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot);
+Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot, double angle, double length);
+StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot, double angle, double length);
 void PivotFreeAll(Stickfigure_array_t* array);
-float PivotGetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotIndex* joint);
+double PivotAngleFrom(Stickfigure* s, unsigned int joint, Vector2 point);
+// float PivotGetNearestJoint(Stickfigure_array_t stickfigures, Vector2 position, PivotIndex* joint);
+bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, PivotEdgeIndex* edge);
+bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, PivotJointIndex* joint);
+void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double length);
 
 #endif // !PIVOT_H

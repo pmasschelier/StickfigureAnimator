@@ -13,6 +13,8 @@
     for(type* var = &(array).data[index];                                   \
         index < (array.length) && (var = &(array).data[index]); index++)
 
+#define array_indexof(array, x) (x - array.data)
+
 #define DEFINE_ARRAY_TYPE(type)                                             \
     typedef struct {                                                        \
         unsigned length;                                                    \

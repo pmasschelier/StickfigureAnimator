@@ -1,4 +1,3 @@
-#include "external/tinyobj_loader_c.h"
 #include "interface.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -32,11 +31,14 @@ bool clickable_hovered = false;
 uint16_t selected_font = 0;
 Font fonts[2];
 
-void HandTake(RendererData* data, PivotIndex index, Vector2 pointer) {
+void HandTake(RendererData* data, PivotEdgeIndex index, Vector2 pointer) {
+    Stickfigure* s = &data->stickfigure.data[index.figure];
+    StickfigureEdge* edge = &s->edges.data[index.edge];
     data->hand.holding = true;
-    data->hand.joint = index;
-    data->hand.start = data->stickfigure.data[index.figure].joints.data[index.joint].pos;
-    data->hand.startPointer = pointer;
+    data->hand.edge = index;
+    data->hand.pointerOffset = Vector2Subtract(s->joints.data[edge->to].pos, pointer);
+    data->hand.angle = edge->angle;
+    data->hand.length = edge->length;
 }
 
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
@@ -55,17 +57,22 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
   };
   Vector2 worldPos =
       renderer_get_world_position(renderer_context, canvasPosition, resolution);
-  PivotIndex nearestjoint;
-  float dist = PivotGetNearestJoint(data->stickfigure, worldPos, &nearestjoint);
-  bool isOnJoint = data->stickfigure.length > 0 && dist < data->pivotRadius;
+  /* PivotIndex nearestjoint; */
+  /* float dist = PivotGetNearestJoint(data->stickfigure, worldPos, &nearestjoint); */
+  /* bool isOnJoint = data->stickfigure.length > 0 && dist < data->pivotRadius; */
   bool isShiftPressed = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+  PivotEdgeIndex edge;
+  bool hoverEdge = PivotPointCollisionEdge(data->stickfigure, worldPos, &edge);
+  PivotJointIndex joint;
+  bool hoverJoint = PivotPointCollisionJoint(data->stickfigure, worldPos, &joint);
 
   switch (pointerInfo.state) {
   case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
     switch (data->mode) {
     case NORMAL:
-      if (!isShiftPressed) {
-        HandTake(data, nearestjoint, worldPos);
+      if (!isShiftPressed && hoverEdge) {
+        printf("Take: figure = %d edge = %d\n", edge.figure, edge.edge);
+        HandTake(data, edge, worldPos);
       }
       break;
     default:
@@ -76,11 +83,13 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     switch (data->mode) {
     case NORMAL:
       data->hand.holding = false;
-        if (isShiftPressed && isOnJoint) {
-          StickfigureEdge *part = PivotAddStick(
-              &data->stickfigure.data[nearestjoint.figure], data->stickType,
-              nearestjoint.joint);
-          HandTake(data, (PivotIndex) { nearestjoint.figure, part->to }, worldPos);
+        if (isShiftPressed && hoverJoint) {
+          Stickfigure* s = &data->stickfigure.data[joint.figure];
+          Vector2 from = data->stickfigure.data[joint.figure].joints.data[joint.joint].pos;
+          double angle = PivotAngleFrom(s, joint.joint, worldPos);
+          double length = Vector2Distance(from, worldPos);
+          StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, angle, length);
+          HandTake(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
         }
       break;
     default:
@@ -91,7 +100,13 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     break;
   }
   if (data->hand.holding) {
-    *data->currentHandle = worldPos;
+    Stickfigure* s = &data->stickfigure.data[data->hand.edge.figure];
+    StickfigureEdge* e = &s->edges.data[data->hand.edge.edge];
+    Vector2 from = s->joints.data[e->from].pos;
+    Vector2 virtual = Vector2Add(worldPos, data->hand.pointerOffset);
+    float angle = PivotAngleFrom(s, e->from, virtual);
+    float length = Vector2Distance(from, virtual);
+    PivotMoveEdge(s, data->hand.edge.edge, angle, length);
   }
 }
 
