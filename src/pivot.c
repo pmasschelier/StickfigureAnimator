@@ -148,3 +148,24 @@ void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double lengt
     e->length = length;
     PivotUpdateJointsRec(s, e, e->rootAngle);
 }
+
+void PivotRemoveEdgeRec(Stickfigure* s, unsigned int edge) {
+    
+}
+
+void PivotRemoveEdge(Stickfigure* s, unsigned int edge) {
+    assert(edge < s->edges.length);
+    StickfigureEdge *e = &s->edges.data[edge];
+    foreach(s->edges, next, StickfigureEdge) {
+        if(next->from == e->to)
+            return;
+    }
+    array_swap_and_pop_back_StickfigureJoint(&s->joints, e->to);
+    array_swap_and_pop_back_StickfigureEdge(&s->edges, edge);
+    foreach(s->edges, edge, StickfigureEdge) {
+        if(edge->from == s->joints.length)
+            edge->from = e->to;
+        if(edge->to == s->joints.length)
+            edge->to = e->to;
+    }
+}

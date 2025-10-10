@@ -74,5 +74,6 @@ double PivotAngleFrom(Stickfigure* s, unsigned int joint, Vector2 point);
 bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, PivotEdgeIndex* edge);
 bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, PivotJointIndex* joint);
 void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double length);
+void PivotRemoveEdge(Stickfigure* s, unsigned int edge);
 
 #endif // !PIVOT_H

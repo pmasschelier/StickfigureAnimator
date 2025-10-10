@@ -15,18 +15,23 @@ constexpr Clay_Color SECONDARY_COLOR = { 90, 90, 90, 255 };
 
 typedef enum {
     NORMAL,
-    EDIT,
-    CLOSE_EDIT
+    CREATE_STICK,
+    MOVE_STICK,
 } EditMode;
 
 constexpr unsigned MENUBAR_BUTTON_COUNT = 5;
 
 typedef struct {
+    double angle;
+    double length;
+} PolarCoords;
+
+typedef struct {
     Stickfigure_array_t stickfigure;
     struct {
         PivotEdgeIndex edge;
-        double angle, length;
-        Vector2 pointerOffset;
+        PolarCoords initial;
+        PolarCoords pointerOffset;
         bool holding;
     } hand;
     EditMode mode;

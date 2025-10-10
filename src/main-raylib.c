@@ -36,9 +36,14 @@ void HandTake(RendererData* data, PivotEdgeIndex index, Vector2 pointer) {
     StickfigureEdge* edge = &s->edges.data[index.edge];
     data->hand.holding = true;
     data->hand.edge = index;
-    data->hand.pointerOffset = Vector2Subtract(s->joints.data[edge->to].pos, pointer);
-    data->hand.angle = edge->angle;
-    data->hand.length = edge->length;
+    data->hand.initial = (PolarCoords) {
+        .angle = edge->angle,
+        .length = edge->length
+    };
+    data->hand.pointerOffset = (PolarCoords) {
+        .angle = edge->angle - PivotAngleFrom(s, edge->from, pointer),
+        .length = edge->length - Vector2Distance(s->joints.data[edge->from].pos, pointer)
+    };
 }
 
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
@@ -68,9 +73,14 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         switch (data->mode) {
         case NORMAL:
             if (!isShiftPressed && hoverEdge) {
-            printf("Take: figure = %d edge = %d\n", edge.figure, edge.edge);
-            HandTake(data, edge, worldPos);
+                printf("Take: figure = %d edge = %d\n", edge.figure, edge.edge);
+                HandTake(data, edge, worldPos);
+                data->mode = MOVE_STICK;
             }
+            break;
+        case CREATE_STICK:
+            data->hand.holding = false;
+            data->mode = NORMAL;
             break;
         default:
             break;
@@ -79,7 +89,6 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
         switch (data->mode) {
         case NORMAL:
-            data->hand.holding = false;
             if (isShiftPressed && hoverJoint) {
                 Stickfigure* s = &data->stickfigure.data[joint.figure];
                 Vector2 from = data->stickfigure.data[joint.figure].joints.data[joint.joint].pos;
@@ -87,11 +96,16 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                 double length = Vector2Distance(from, worldPos);
                 StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, angle, length);
                 HandTake(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
+                data->mode = CREATE_STICK;
             }
             break;
+        case MOVE_STICK:
+            data->hand.holding = false;
+            data->mode = NORMAL;
         default:
             break;
         }
+        printf("Mode: %d\n", data->mode);
         break;
     default:
         break;
@@ -100,9 +114,8 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         Stickfigure* s = &data->stickfigure.data[data->hand.edge.figure];
         StickfigureEdge* e = &s->edges.data[data->hand.edge.edge];
         Vector2 from = s->joints.data[e->from].pos;
-        Vector2 virtual = Vector2Add(worldPos, data->hand.pointerOffset);
-        float angle = PivotAngleFrom(s, e->from, virtual);
-        float length = Vector2Distance(from, virtual);
+        float angle = PivotAngleFrom(s, e->from, worldPos) + data->hand.pointerOffset.angle;
+        float length = Vector2Distance(from, worldPos) + data->hand.pointerOffset.length;
         PivotMoveEdge(s, data->hand.edge.edge, angle, length);
     }
 }
@@ -115,6 +128,25 @@ void UpdateDrawFrame() {
     if (IsKeyPressed(KEY_D)) {
         debugEnabled = !debugEnabled;
         Clay_SetDebugModeEnabled(debugEnabled);
+    }
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        auto hand = &data.rendererData.hand;
+        Stickfigure* s = &data.rendererData.stickfigure.data[hand->edge.figure];
+        switch (data.rendererData.mode) {
+            case CREATE_STICK:
+                data.rendererData.hand.holding = false;
+                printf("%d/%d\n", hand->edge.edge, s->edges.length);
+                PivotRemoveEdge(s, hand->edge.edge);
+                data.rendererData.mode = NORMAL;
+                break;
+            case MOVE_STICK:
+                data.rendererData.hand.holding = false;
+                PivotMoveEdge(s, hand->edge.edge, hand->initial.angle, hand->initial.length);
+                data.rendererData.mode = NORMAL;
+                break;
+            default:
+                break;
+        }
     }
     //----------------------------------------------------------------------------------
     // Handle scroll containers

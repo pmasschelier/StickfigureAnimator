@@ -226,18 +226,13 @@ void HandleCreateStickfigure(RendererData* data) {
 }
 
 typedef struct {
-    EditMode *mode;
     StickfigurePartType* stickType;
-    EditMode modeRequested;
     StickfigurePartType stickTypeRequested;
 } HandleChangeModeData;
 
 void HandleChangeMode(void *data) {
     HandleChangeModeData *modedata = data;
-    *modedata->mode = modedata->modeRequested;
-    if(modedata->modeRequested == EDIT)
-        *modedata->stickType = modedata->stickTypeRequested;
-    printf("New mode: %d\n", *modedata->mode);
+    *modedata->stickType = modedata->stickTypeRequested;
 }
 
 void RenderFileMenu(void *priv, Callback_t* onMouseUp) {
@@ -258,9 +253,7 @@ void RenderCreateMenu(void *priv, Callback_t* onMouseUp) {
     HandleChangeModeData *modes =
         arena_allocate(&data->arena, 2, sizeof(HandleChangeModeData));
     for (int i = 0; i < 2; i++) {
-        modes[i].mode = &data->rendererData.mode;
         modes[i].stickType = &data->rendererData.stickType;
-        modes[i].modeRequested = EDIT;
     }
     modes[0].stickTypeRequested = STICKFIGURE_STICK;
     RenderDropdownMenuItem(
