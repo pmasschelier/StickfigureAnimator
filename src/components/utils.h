@@ -29,7 +29,7 @@ typedef struct {
 typedef struct {
     Arena* arena;
     ComponentTheme theme;
-    bool clickablHovered;
+    bool clickableHovered;
 } ComponentContext;
 
 #endif // !COMPONENTS_UTILS_H

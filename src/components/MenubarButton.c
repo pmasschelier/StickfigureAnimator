@@ -1,4 +1,5 @@
 #include "components/callback.h"
+#include "components/utils.h"
 #include <stdint.h>
 
 extern uint16_t selected_font;
@@ -14,7 +15,7 @@ void RenderMenuBarButton(
     bool *menuVisible,
     void RenderMenu(void *, Callback_t* onMouseReleased),
     void *priv,
-    Arena* arena
+    ComponentContext* context
 ) {
     CLAY(
         { .id = buttonId,
@@ -30,6 +31,9 @@ void RenderMenuBarButton(
                   .textColor = { 255, 255, 255, 255 } }
             )
         );
+        if(Clay_Hovered()) {
+            context->clickableHovered = true;
+        }
         if (Clay_GetPointerState().state
             == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
             if (Clay_PointerOver(buttonId))
@@ -64,7 +68,7 @@ void RenderMenuBarButton(
                     .backgroundColor = {40, 40, 40, 255 },
                     .cornerRadius = {0.f, 8.f, 8.f, 8.f},
                 }) {
-                    RenderMenu(priv, CallbackCreate(arena, (CallbackFn)CloseMenu, menuVisible));
+                    RenderMenu(priv, CallbackCreate(context->arena, (CallbackFn)CloseMenu, menuVisible));
                 }
             }
         }

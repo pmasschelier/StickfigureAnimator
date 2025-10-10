@@ -3,9 +3,6 @@
 
 #include "raylib.h"
 #include "utils.h"
-#include "callback.h"
-#include "arena.h"
-
 
 void RenderCanvas(Clay_ElementId id, OnHoverFn onHoverFunction, void* hoverFnData, Texture2D* texture);
 void RenderDropdownMenuItem(
@@ -21,7 +18,7 @@ void RenderMenuBarButton(
     bool *menuVisible,
     void RenderMenu(void *, Callback_t* onMouseReleased),
     void *priv,
-    Arena* arena
+    ComponentContext* context
 );
 
 void RenderIconButton(Clay_ElementId id, Texture2D* icon, Callback_t* onMouseUp, ComponentContext* context);

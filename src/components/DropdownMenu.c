@@ -30,7 +30,7 @@ void RenderDropdownMenuItem(
         if (onClick) {
             if (Clay_Hovered()) {
                 background = (Clay_Color){ 0xFF, 0xFF, 0xFF, 0x33 };
-                context->clickablHovered = true;
+                context->clickableHovered = true;
             }
             SetButtonCallbacks(context->arena, (ButtonData){ .onMouseUp = onClick });
         }

@@ -17,7 +17,6 @@ RendererContext *renderer_context;
 GLFWwindow *window;
 
 bool debugEnabled = false;
-bool clickable_hovered = false;
 
 #define RAYLIB_VECTOR2_TO_CLAY_VECTOR2(vector)                                 \
   (Clay_Vector2) { .x = vector.x, .y = vector.y }
@@ -158,9 +157,9 @@ void UpdateDrawFrame() {
     Clay_UpdateScrollContainers(true, (Clay_Vector2){mouseWheelX, mouseWheelY},
                                 GetFrameTime());
     // Generate the auto layout for rendering
-    clickable_hovered = false;
+    data->context.clickableHovered = false;
     Clay_RenderCommandArray renderCommands = InterfaceLayout(data);
-    if (clickable_hovered)
+    if (data->context.clickableHovered)
         SetMouseCursor(MOUSE_CURSOR_POINTING_HAND);
     else
         SetMouseCursor(MOUSE_CURSOR_DEFAULT);

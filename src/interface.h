@@ -57,7 +57,7 @@ constexpr char ICON_FILENAMES[ICON_COUNT][128] = {
 };
 
 typedef struct {
-    int32_t selectedDocumentIndex;
+    int selectedStickfigure;
     float yOffset;
     Arena arena;
     bool isMenuBarButtonOpen[MENUBAR_BUTTON_COUNT];

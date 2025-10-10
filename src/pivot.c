@@ -4,6 +4,8 @@
 #include "raymath.h"
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 static inline Vector2 PivotComputePosition(Vector2 origin, double angle, double length) {
     return (Vector2) {
@@ -23,8 +25,13 @@ static void PivotUpdateJointsRec(Stickfigure* s, StickfigureEdge* edge, double a
     }
 }
 
-Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, StickfigurePartType type, Vector2 pivot, double angle, double length) {
+Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name, StickfigurePartType type, Vector2 pivot, double angle, double length) {
+    int index = array->length;
     Stickfigure* sf = array_append_Stickfigure(array);
+    if(!name)
+        snprintf(sf->name, STICKFIGURE_NAME_LENGTH, "Stickfigure #%d", index);
+    else
+        strncpy(sf->name, name, STICKFIGURE_NAME_LENGTH);
     sf->joints = (StickfigureJoint_array_t){};
     sf->edges = (StickfigureEdge_array_t){};
     StickfigureEdge* edge = array_append_StickfigureEdge(&sf->edges);
