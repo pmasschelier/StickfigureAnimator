@@ -2,53 +2,56 @@
 
 typedef struct {
     CallbackFn fn;
-} CallbackSingle_t;
+} CallbackSimple_t;
 
 typedef struct  {
-    CallbackGroupFn fn;
-    unsigned count;
-} CallbackGroup_t;
+    CallbackIndexFn fn;
+    unsigned index;
+} CallbackIndexed_t;
 
 struct Callback {
     enum {
         CALLBACK_SINGLE,
-        CALLBACK_GROUP,
+        CALLBACK_INDEXED,
     } type;
     union {
-        CallbackSingle_t single;
-        CallbackGroup_t group;
+        CallbackSimple_t simple;
+        CallbackIndexed_t indexed;
     };
     void* params;
     Callback_t* then;
-} ;
+};
 
-void RunCallbackAll(Callback_t* cb) {
+const size_t SizeofCallback = sizeof(Callback_t);
+
+void CallbackRunAll(Callback_t* cb) {
     if(!cb)
         return;
     switch (cb->type) {
         case CALLBACK_SINGLE:
-            if(cb->single.fn)
-                cb->single.fn(cb->params);
+            if(cb->simple.fn)
+                cb->simple.fn(cb->params);
             break;
-        case CALLBACK_GROUP:
-            for (unsigned i = 0; i < cb->group.count; i++)
-                cb->group.fn(i, cb->params);
+        case CALLBACK_INDEXED:
+            cb->indexed.fn(cb->indexed.index, cb->params);
             break;
     }
-    RunCallbackAll(cb->then);
+    CallbackRunAll(cb->then);
 }
 
-Callback_t* CallbackChainGroup(Arena* arena, Callback_t* cb, CallbackGroupFn fn, unsigned count, void* params) {
-    Callback_t* ret = arena_allocate(arena, 1, sizeof(Callback_t));
-    ret->type = CALLBACK_GROUP;
-    ret->group.fn = fn;
-    ret->group.count = count;
-    ret->params = params;
-    ret->then = cb;
+Callback_t* CallbackChainGroup(Arena* arena, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params) {
+    Callback_t* ret = arena_allocate(arena, count, sizeof(Callback_t));
+    for (unsigned i = 0; i < count; i++) {
+        ret[i].type = CALLBACK_INDEXED;
+        ret[i].indexed.fn = fn;
+        ret[i].indexed.index = i;
+        ret[i].params = params;
+        ret[i].then = cb;
+    }
     return ret;
 }
 
-Callback_t* CallbackChainGroupCopyParams(Arena* arena, Callback_t* cb, CallbackGroupFn fn, unsigned count, void* params, size_t paramsSize) {
+Callback_t* CallbackChainGroupCopyParams(Arena* arena, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params, size_t paramsSize) {
     void* paramsCopy = arena_allocate(arena, 1, paramsSize);
     memcpy(paramsCopy, params, paramsSize);
     return CallbackChainGroup(arena, cb, fn, count, paramsCopy);
@@ -58,7 +61,7 @@ Callback_t* CallbackChainGroupCopyParams(Arena* arena, Callback_t* cb, CallbackG
 Callback_t* CallbackChain(Arena* arena, Callback_t* cb, CallbackFn fn, void* params) {
     Callback_t* ret = arena_allocate(arena, 1, sizeof(Callback_t));
     ret->type = CALLBACK_SINGLE;
-    ret->single.fn = fn;
+    ret->simple.fn = fn;
     ret->params = params;
     ret->then = cb;
     return ret;
@@ -78,10 +81,10 @@ static void HandleHoverFunction(
     ButtonData *data = (void *)userData;
     switch (pointerInfo.state) {
     case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
-        RunCallbackAll(data->onMouseDown);
+        CallbackRunAll(data->onMouseDown);
         break;
     case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
-        RunCallbackAll(data->onMouseUp);
+        CallbackRunAll(data->onMouseUp);
         break;
     default:
         break;

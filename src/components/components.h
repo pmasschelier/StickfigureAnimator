@@ -25,5 +25,6 @@ void RenderMenuBarButton(
 );
 
 void RenderIconButton(Clay_ElementId id, Texture2D* icon, Callback_t* onMouseUp, ComponentContext* context);
+void RenderIconButtonGroup(Clay_ElementId id, Texture2D* icons, Callback_t* onSelected, unsigned count, int selected, ComponentContext* context);
 
 #endif // !COMPONENTS_H
