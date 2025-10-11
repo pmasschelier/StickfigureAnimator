@@ -19,9 +19,9 @@ InterfaceData* InterfaceInit() {
     const size_t COMPONENT_ARENA_SIZE = 4096;
     void *memory = malloc(COMPONENT_ARENA_SIZE);
     assert(memory);
-    InterfaceData* data = malloc(sizeof(InterfaceData) + COMPONENT_ARENA_SIZE);
+    InterfaceData* data = malloc(sizeof(InterfaceData));
     *data = (InterfaceData){
-        .arena = arena_init(COMPONENT_ARENA_SIZE, data + 1),
+        .arena = arena_create(COMPONENT_ARENA_SIZE),
         .rendererData = {
             .pivotRadius = 1.f
         },
@@ -250,5 +250,6 @@ void InterfaceDeinit(InterfaceData* data) {
     for(unsigned i = 0; i < ICON_COUNT; i++) {
         UnloadTexture(data->icons[i]);
     }
+    arena_free(&data->arena);
     free(data);
 }

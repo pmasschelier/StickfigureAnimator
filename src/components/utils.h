@@ -30,6 +30,7 @@ typedef struct {
     Arena* arena;
     ComponentTheme theme;
     bool clickableHovered;
+    bool arenaOverflowed;
 } ComponentContext;
 
 #endif // !COMPONENTS_UTILS_H

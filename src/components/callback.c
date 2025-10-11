@@ -41,13 +41,14 @@ void CallbackRunAll(Callback_t* cb) {
 
 Callback_t* CallbackChainGroup(Arena* arena, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params) {
     Callback_t* ret = arena_allocate(arena, count, sizeof(Callback_t));
-    for (unsigned i = 0; i < count; i++) {
-        ret[i].type = CALLBACK_INDEXED;
-        ret[i].indexed.fn = fn;
-        ret[i].indexed.index = i;
-        ret[i].params = params;
-        ret[i].then = cb;
-    }
+    if(ret != nullptr)
+        for (unsigned i = 0; i < count; i++) {
+            ret[i].type = CALLBACK_INDEXED;
+            ret[i].indexed.fn = fn;
+            ret[i].indexed.index = i;
+            ret[i].params = params;
+            ret[i].then = cb;
+        }
     return ret;
 }
 
