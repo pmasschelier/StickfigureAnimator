@@ -137,12 +137,11 @@ static Rectangle renderer_get_effective_viewport(Rectangle worldViewport, Vector
 }
 
 typedef struct {
-    Vector2 start;
-    Vector2 end;
     Vector4 color;
+    GLuint start;
+    GLuint end;
     GLuint type;
     GLfloat thickness;
-    float padding[2];
 } SSBOStick;
 
 void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
@@ -206,21 +205,29 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     SetShaderValue(state->stickfigureShader, state->locations.joint_radius, &pivotRadius, SHADER_UNIFORM_FLOAT);
     SetShaderValue(state->postprocessShader, state->locations.viewport, &state->worldViewport, SHADER_UNIFORM_VEC4);
     
-    GLuint* ssbos;
+    GLuint *edgesSSBO = nullptr, *jointsSSBO = nullptr;
     if(stickfigures.length > 0) {
-        ssbos = malloc(stickfigures.length * sizeof(GLuint));
-        glCreateBuffers(stickfigures.length, ssbos);
+        jointsSSBO = malloc(stickfigures.length * sizeof(GLuint));
+        glCreateBuffers(stickfigures.length, jointsSSBO);
+        edgesSSBO = malloc(stickfigures.length * sizeof(GLuint));
+        glCreateBuffers(stickfigures.length, edgesSSBO);
         foreach(stickfigures, s, Stickfigure) {
-            glNamedBufferStorage(ssbos[index], s->edges.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
-            SSBOStick* map = glMapNamedBuffer(ssbos[index], GL_WRITE_ONLY);
-            for(unsigned i = 0; i < s->edges.length; i++) {
-                map[i].start = Vector2Add(s->position, s->joints.data[s->edges.data[i].from].pos);
-                map[i].end = Vector2Add(s->position, s->joints.data[s->edges.data[i].to].pos);
-                map[i].type = s->edges.data[i].type;
-                map[i].color = (Vector4) { 0.f, -1.f, 0.f, 1.f};
-                map[i].thickness = 1.f;
+            glNamedBufferStorage(jointsSSBO[index], s->joints.length * sizeof(Vector2), nullptr, GL_MAP_WRITE_BIT);
+            Vector2* joints = glMapNamedBuffer(jointsSSBO[index], GL_WRITE_ONLY);
+            foreach(s->joints, j, StickfigureJoint) {
+                joints[index] = Vector2Add(j->pos, s->position);
             }
-            glUnmapNamedBuffer(ssbos[index]);
+            glUnmapNamedBuffer(jointsSSBO[index]);
+            glNamedBufferStorage(edgesSSBO[index], s->edges.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
+            SSBOStick* edges = glMapNamedBuffer(edgesSSBO[index], GL_WRITE_ONLY);
+            foreach(s->edges, e, StickfigureEdge) {
+                edges[index].start = e->from;
+                edges[index].end = e->to;
+                edges[index].type = e->type;
+                edges[index].color = (Vector4) { 0.f, -1.f, 0.f, 1.f};
+                edges[index].thickness = e->thickness;
+            }
+            glUnmapNamedBuffer(edgesSSBO[index]);
         }
     }
 
@@ -229,9 +236,11 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     glBindVertexArray(vao);
     for (unsigned i = 0; i < stickfigures.length; i++) {
         glUseProgram(state->stickfigureShader.id);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbos[i]);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, edgesSSBO[i]);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, jointsSSBO[i]);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
     }
     glUseProgram(state->postprocessShader.id);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
@@ -239,11 +248,16 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     glBindVertexArray(0);
     EndTextureMode();
 
-    glDeleteBuffers(stickfigures.length, ssbos);
+    glDeleteBuffers(stickfigures.length, edgesSSBO);
+    free(edgesSSBO);
+    glDeleteBuffers(stickfigures.length, jointsSSBO);
+    free(jointsSSBO);
     glDeleteBuffers(1, &vbo_v);
     glDeleteBuffers(1, &vbo_t);
     glDeleteBuffers(1, &ebo);
     glDeleteVertexArrays(1, &vao);
+
+    arena_reset(&state->arena);
 }
 
 Vector2 renderer_get_screen_position(RendererContext* context, Vector2 worldPosition, Rectangle screenViewport) {

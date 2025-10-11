@@ -129,7 +129,6 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         case HAND_HOLDING_STICK:
             s = &data->stickfigure.data[data->hand.edge.edge.figure];
             StickfigureEdge* e = &s->edges.data[data->hand.edge.edge.edge];
-            Vector2 from = s->joints.data[e->from].pos;
             float angle = PivotAngleFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.angle;
             float length = PivotDistanceFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.length;
             PivotMoveEdge(s, data->hand.edge.edge.edge, angle, length);

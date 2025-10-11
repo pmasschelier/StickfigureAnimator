@@ -34,7 +34,7 @@ Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name
         strncpy(sf->name, name, STICKFIGURE_NAME_LENGTH);
     sf->joints = (StickfigureJoint_array_t){};
     sf->edges = (StickfigureEdge_array_t){};
-    sf->position = Vector2Zero();
+    sf->position = pivot;
     StickfigureEdge* edge = array_append_StickfigureEdge(&sf->edges);
     *edge = (StickfigureEdge) {
         .from = 0,
@@ -42,11 +42,12 @@ Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name
         .type = type,
         .angle = angle,
         .length = length,
+        .thickness = 1.f
     };
     StickfigureJoint* ppivot = array_append_StickfigureJoint(&sf->joints);
-    ppivot->pos = pivot;
+    ppivot->pos = Vector2Zero();
     StickfigureJoint* phandle = array_append_StickfigureJoint(&sf->joints);
-    phandle->pos = PivotComputePosition(pivot, angle, length);
+    phandle->pos = PivotComputePosition(Vector2Zero(), angle, length);
     return sf;
 }
 
@@ -71,7 +72,8 @@ StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigne
         .type = type,
         .rootAngle = rootAngle,
         .angle = angle,
-        .length = length
+        .length = length,
+        .thickness = 1.f,
     };
     PivotUpdateJointsRec(s, edge, rootAngle);
     return edge;
@@ -90,14 +92,29 @@ float sdSegment(Vector2 p, Vector2 a, Vector2 b)
     Vector2 pa = Vector2Subtract(p, a);
     Vector2 ba = Vector2Subtract(b, a);
     float h = Clamp(Vector2DotProduct(pa,ba) / Vector2DotProduct(ba,ba), 0.0, 1.0 );
+    printf("STICK: from = (%f, %f), to = (%f, %f)\n", a.x, a.y, b.x, b.y);
     return Vector2Length(Vector2Subtract(pa, Vector2Scale(ba, h)));
+}
+
+float sdRing(Vector2 p, Vector2 a, Vector2 b) {
+    Vector2 center = Vector2Scale(Vector2Add(a, b), 0.5f);
+    float radius = 0.5f * Vector2Distance(a, b);
+    return fabsf(Vector2Distance(p, center) - radius);
 }
 
 bool PivotPointCollisionRec(Stickfigure* s, Vector2 point, unsigned joint, unsigned *edge) {
     foreach(s->edges, e, StickfigureEdge) {
         if(e->from == joint) {
-            float d1 = sdSegment(point, s->joints.data[e->from].pos, s->joints.data[e->to].pos) - 1.f;
-            float d2 = Vector2Distance(point, s->joints.data[e->from].pos) - 1.f;
+            float d1;
+            Vector2 from = s->joints.data[e->from].pos;
+            Vector2 to = s->joints.data[e->to].pos;
+            if(e->type == STICKFIGURE_STICK) {
+                d1 = sdSegment(point, from, to);
+            } else {
+                d1 = sdRing(point, from, to);
+            }
+            d1 -= 0.5f * e->thickness;
+            float d2 = Vector2Distance(point, s->joints.data[e->from].pos) - 0.5f * e->thickness;
             if(fmax(-d2, d1) < 0.f) {
                 *edge = index;
                 return true;
