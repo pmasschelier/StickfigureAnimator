@@ -92,7 +92,6 @@ float sdSegment(Vector2 p, Vector2 a, Vector2 b)
     Vector2 pa = Vector2Subtract(p, a);
     Vector2 ba = Vector2Subtract(b, a);
     float h = Clamp(Vector2DotProduct(pa,ba) / Vector2DotProduct(ba,ba), 0.0, 1.0 );
-    printf("STICK: from = (%f, %f), to = (%f, %f)\n", a.x, a.y, b.x, b.y);
     return Vector2Length(Vector2Subtract(pa, Vector2Scale(ba, h)));
 }
 

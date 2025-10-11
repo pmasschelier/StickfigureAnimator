@@ -79,13 +79,14 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
         switch (data->mode) {
         case NORMAL:
-            if (!isShiftPressed && hoverEdge) {
-                printf("Take: figure = %d edge = %d\n", edge.figure, edge.edge);
-                if(isControlPressed) {
+            if(!isShiftPressed) {
+                if(hoverEdge && isControlPressed) {
                     HandTakeStickfigure(data, edge.figure, worldPos);
                     data->mode = MOVE_STICKFIGURE;
-                }
-                else {
+                } else if (hoverJoint && (joint.joint == 0)) {
+                    HandTakeStickfigure(data, joint.figure, worldPos);
+                    data->mode = MOVE_STICKFIGURE;
+                } else if(hoverEdge) {
                     HandTakeStick(data, edge, worldPos);
                     data->mode = MOVE_STICK;
                 }
@@ -103,7 +104,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
         switch (data->mode) {
         case NORMAL:
-            if (isShiftPressed && hoverJoint) {
+            if(hoverJoint && isShiftPressed) {
                 Stickfigure* s = &data->stickfigure.data[joint.figure];
                 double angle = PivotAngleFrom(s, joint.joint, worldPos);
                 double length = PivotDistanceFrom(s, joint.joint, worldPos);
