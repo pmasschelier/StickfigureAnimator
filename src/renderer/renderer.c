@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "arena.h"
 #include "array.h"
+#include "raymath.h"
 #include "rlgl.h"
 #include "src/pivot.h"
 #include "src/raylib.h"
@@ -209,13 +210,13 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
     if(stickfigures.length > 0) {
         ssbos = malloc(stickfigures.length * sizeof(GLuint));
         glCreateBuffers(stickfigures.length, ssbos);
-        foreach(stickfigures, stickfigure, Stickfigure) {
-            glNamedBufferStorage(ssbos[index], stickfigure->edges.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
+        foreach(stickfigures, s, Stickfigure) {
+            glNamedBufferStorage(ssbos[index], s->edges.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
             SSBOStick* map = glMapNamedBuffer(ssbos[index], GL_WRITE_ONLY);
-            for(unsigned i = 0; i < stickfigure->edges.length; i++) {
-                map[i].start = stickfigure->joints.data[stickfigure->edges.data[i].from].pos;
-                map[i].end = stickfigure->joints.data[stickfigure->edges.data[i].to].pos;
-                map[i].type = stickfigure->edges.data[i].type;
+            for(unsigned i = 0; i < s->edges.length; i++) {
+                map[i].start = Vector2Add(s->position, s->joints.data[s->edges.data[i].from].pos);
+                map[i].end = Vector2Add(s->position, s->joints.data[s->edges.data[i].to].pos);
+                map[i].type = s->edges.data[i].type;
                 map[i].color = (Vector4) { 0.f, -1.f, 0.f, 1.f};
                 map[i].thickness = 1.f;
             }

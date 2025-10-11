@@ -52,6 +52,7 @@ Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name
 StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot, double angle, double length);
 void PivotFreeAll(Stickfigure_array_t* array);
 double PivotAngleFrom(Stickfigure* s, unsigned int joint, Vector2 point);
+double PivotDistanceFrom(Stickfigure* s, unsigned int joint, Vector2 point);
 bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, PivotEdgeIndex* edge);
 bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, PivotJointIndex* joint);
 void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double length);

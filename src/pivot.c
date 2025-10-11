@@ -34,6 +34,7 @@ Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name
         strncpy(sf->name, name, STICKFIGURE_NAME_LENGTH);
     sf->joints = (StickfigureJoint_array_t){};
     sf->edges = (StickfigureEdge_array_t){};
+    sf->position = Vector2Zero();
     StickfigureEdge* edge = array_append_StickfigureEdge(&sf->edges);
     *edge = (StickfigureEdge) {
         .from = 0,
@@ -111,7 +112,8 @@ bool PivotPointCollisionRec(Stickfigure* s, Vector2 point, unsigned joint, unsig
 bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, PivotEdgeIndex* edge) {
     unsigned edgeId;
     foreach(stickfigures, s, Stickfigure) {
-        if(PivotPointCollisionRec(s, point, 0, &edgeId)) {
+        Vector2 relativePointer = Vector2Subtract(point, s->position);
+        if(PivotPointCollisionRec(s, relativePointer, 0, &edgeId)) {
             *edge = (PivotEdgeIndex){
                 .figure = index,
                 .edge = edgeId
@@ -124,9 +126,10 @@ bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, Pi
 
 bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, PivotJointIndex* joint) {
     foreach(stickfigures, s, Stickfigure) {
+        Vector2 relativePointer = Vector2Subtract(point, s->position);
         int figure = index;
         foreach(s->joints, j, StickfigureJoint) {
-            if(Vector2Distance(j->pos, point) < 1.f) {
+            if(Vector2Distance(j->pos, relativePointer) < 1.f) {
                 *joint = (PivotJointIndex) {
                     .figure = figure,
                     .joint = index
@@ -143,9 +146,14 @@ double PivotAngleFrom(Stickfigure* s, unsigned int joint, Vector2 point) {
     Vector2 edge = { 1.f, 0.f };
     if(e != nullptr)
         edge = Vector2Subtract(s->joints.data[e->to].pos, s->joints.data[e->from].pos);
-    Vector2 arrow = Vector2Subtract(point, s->joints.data[joint].pos);
-    /* printf("EDGE (%f, %f) ARROW (%f, %f)\n", edge.x, edge.y, arrow.x, arrow.y); */
+    Vector2 relativePointer = Vector2Subtract(point, s->position);
+    Vector2 arrow = Vector2Subtract(relativePointer, s->joints.data[joint].pos);
     return Vector2Angle(edge, arrow);
+}
+
+double PivotDistanceFrom(Stickfigure* s, unsigned int joint, Vector2 point) {
+    Vector2 relativePointer = Vector2Subtract(point, s->position);
+    return Vector2Distance(s->joints.data[joint].pos, relativePointer);
 }
 
 void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double length) {
@@ -154,10 +162,6 @@ void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double lengt
     e->angle = angle;
     e->length = length;
     PivotUpdateJointsRec(s, e, e->rootAngle);
-}
-
-void PivotRemoveEdgeRec(Stickfigure* s, unsigned int edge) {
-    
 }
 
 void PivotRemoveEdge(Stickfigure* s, unsigned int edge) {

@@ -18,6 +18,7 @@ typedef enum {
     NORMAL,
     CREATE_STICK,
     MOVE_STICK,
+    MOVE_STICKFIGURE,
 } EditMode;
 
 constexpr unsigned MENUBAR_BUTTON_COUNT = 5;
@@ -28,13 +29,28 @@ typedef struct {
 } PolarCoords;
 
 typedef struct {
+    enum {
+        HAND_EMPTY,
+        HAND_HOLDING_STICK,
+        HAND_HOLDING_STICKFIGURE,
+    } status;
+    union {
+        struct {
+            PivotEdgeIndex edge;
+            PolarCoords initial;
+            PolarCoords pointerOffset;
+        } edge;
+        struct {
+            unsigned int figure;
+            Vector2 initialStickfigure;
+            Vector2 initialPointer;
+        } stickfigure;
+    };
+} HandData;
+
+typedef struct {
     Stickfigure_array_t stickfigure;
-    struct {
-        PivotEdgeIndex edge;
-        PolarCoords initial;
-        PolarCoords pointerOffset;
-        bool holding;
-    } hand;
+    HandData hand;
     EditMode mode;
     StickfigurePartType stickType;
     Vector2 offset;

@@ -30,19 +30,26 @@ bool debugEnabled = false;
 uint16_t selected_font = 0;
 Font fonts[2];
 
-void HandTake(RendererData* data, PivotEdgeIndex index, Vector2 pointer) {
+void HandTakeStick(RendererData* data, PivotEdgeIndex index, Vector2 pointer) {
     Stickfigure* s = &data->stickfigure.data[index.figure];
     StickfigureEdge* edge = &s->edges.data[index.edge];
-    data->hand.holding = true;
-    data->hand.edge = index;
-    data->hand.initial = (PolarCoords) {
+    data->hand.status = HAND_HOLDING_STICK;
+    data->hand.edge.edge = index;
+    data->hand.edge.initial = (PolarCoords) {
         .angle = edge->angle,
         .length = edge->length
     };
-    data->hand.pointerOffset = (PolarCoords) {
+    data->hand.edge.pointerOffset = (PolarCoords) {
         .angle = edge->angle - PivotAngleFrom(s, edge->from, pointer),
-        .length = edge->length - Vector2Distance(s->joints.data[edge->from].pos, pointer)
+        .length = edge->length - PivotDistanceFrom(s, edge->from, pointer)
     };
+}
+
+void HandTakeStickfigure(RendererData* data, unsigned stickfigure, Vector2 pointer) {
+    data->hand.status = HAND_HOLDING_STICKFIGURE;
+    data->hand.stickfigure.initialPointer = pointer;
+    data->hand.stickfigure.initialStickfigure = data->stickfigure.data[stickfigure].position;
+    data->hand.stickfigure.figure = stickfigure;
 }
 
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
@@ -62,6 +69,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     Vector2 worldPos =
         renderer_get_world_position(renderer_context, canvasPosition, resolution);
     bool isShiftPressed = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    bool isControlPressed = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
     PivotEdgeIndex edge;
     bool hoverEdge = PivotPointCollisionEdge(data->stickfigure, worldPos, &edge);
     PivotJointIndex joint;
@@ -73,17 +81,24 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         case NORMAL:
             if (!isShiftPressed && hoverEdge) {
                 printf("Take: figure = %d edge = %d\n", edge.figure, edge.edge);
-                HandTake(data, edge, worldPos);
-                data->mode = MOVE_STICK;
+                if(isControlPressed) {
+                    HandTakeStickfigure(data, edge.figure, worldPos);
+                    data->mode = MOVE_STICKFIGURE;
+                }
+                else {
+                    HandTakeStick(data, edge, worldPos);
+                    data->mode = MOVE_STICK;
+                }
             }
             break;
         case CREATE_STICK:
-            data->hand.holding = false;
+            data->hand.status = HAND_EMPTY;
             data->mode = NORMAL;
             break;
         default:
             break;
         }
+        printf("Mode: %d\n", data->mode);
         break;
     case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
         switch (data->mode) {
@@ -94,12 +109,13 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                 double angle = PivotAngleFrom(s, joint.joint, worldPos);
                 double length = Vector2Distance(from, worldPos);
                 StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, angle, length);
-                HandTake(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
+                HandTakeStick(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
                 data->mode = CREATE_STICK;
             }
             break;
         case MOVE_STICK:
-            data->hand.holding = false;
+        case MOVE_STICKFIGURE:
+            data->hand.status = HAND_EMPTY;
             data->mode = NORMAL;
         default:
             break;
@@ -109,13 +125,24 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     default:
         break;
     }
-    if (data->hand.holding) {
-        Stickfigure* s = &data->stickfigure.data[data->hand.edge.figure];
-        StickfigureEdge* e = &s->edges.data[data->hand.edge.edge];
-        Vector2 from = s->joints.data[e->from].pos;
-        float angle = PivotAngleFrom(s, e->from, worldPos) + data->hand.pointerOffset.angle;
-        float length = Vector2Distance(from, worldPos) + data->hand.pointerOffset.length;
-        PivotMoveEdge(s, data->hand.edge.edge, angle, length);
+    switch (data->hand.status) {
+        Stickfigure* s;
+        case HAND_HOLDING_STICK:
+            s = &data->stickfigure.data[data->hand.edge.edge.figure];
+            StickfigureEdge* e = &s->edges.data[data->hand.edge.edge.edge];
+            Vector2 from = s->joints.data[e->from].pos;
+            float angle = PivotAngleFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.angle;
+            /* float length = Vector2Distance(from, worldPos) + data->hand.edge.pointerOffset.length; */
+            float length = PivotDistanceFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.length;
+            PivotMoveEdge(s, data->hand.edge.edge.edge, angle, length);
+            break;
+        case HAND_HOLDING_STICKFIGURE:
+            s = &data->stickfigure.data[data->hand.stickfigure.figure];
+            s->position = Vector2Add(data->hand.stickfigure.initialStickfigure, Vector2Subtract(worldPos, data->hand.stickfigure.initialPointer));
+            /* printf("(%f, %f)\n", s->position.x, s->position.y); */
+            break;
+        default:
+            break;
     }
 }
 
@@ -130,16 +157,16 @@ void UpdateDrawFrame() {
     }
     if (IsKeyPressed(KEY_ESCAPE)) {
         auto hand = &data->rendererData.hand;
-        Stickfigure* s = &data->rendererData.stickfigure.data[hand->edge.figure];
+        Stickfigure* s = &data->rendererData.stickfigure.data[hand->edge.edge.figure];
         switch (data->rendererData.mode) {
             case CREATE_STICK:
-                data->rendererData.hand.holding = false;
-                PivotRemoveEdge(s, hand->edge.edge);
+                data->rendererData.hand.status = HAND_EMPTY;
+                PivotRemoveEdge(s, hand->edge.edge.edge);
                 data->rendererData.mode = NORMAL;
                 break;
             case MOVE_STICK:
-                data->rendererData.hand.holding = false;
-                PivotMoveEdge(s, hand->edge.edge, hand->initial.angle, hand->initial.length);
+                data->rendererData.hand.status = HAND_EMPTY;
+                PivotMoveEdge(s, hand->edge.edge.edge, hand->edge.initial.angle, hand->edge.initial.length);
                 data->rendererData.mode = NORMAL;
                 break;
             default:
