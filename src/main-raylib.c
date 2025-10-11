@@ -47,9 +47,9 @@ void HandTakeStick(RendererData* data, PivotEdgeIndex index, Vector2 pointer) {
 
 void HandTakeStickfigure(RendererData* data, unsigned stickfigure, Vector2 pointer) {
     data->hand.status = HAND_HOLDING_STICKFIGURE;
-    data->hand.stickfigure.initialPointer = pointer;
-    data->hand.stickfigure.initialStickfigure = data->stickfigure.data[stickfigure].position;
-    data->hand.stickfigure.figure = stickfigure;
+    data->hand.figure.initialPointer = pointer;
+    data->hand.figure.initialStickfigure = data->stickfigure.data[stickfigure].position;
+    data->hand.figure.figure = stickfigure;
 }
 
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
@@ -105,9 +105,8 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         case NORMAL:
             if (isShiftPressed && hoverJoint) {
                 Stickfigure* s = &data->stickfigure.data[joint.figure];
-                Vector2 from = data->stickfigure.data[joint.figure].joints.data[joint.joint].pos;
                 double angle = PivotAngleFrom(s, joint.joint, worldPos);
-                double length = Vector2Distance(from, worldPos);
+                double length = PivotDistanceFrom(s, joint.joint, worldPos);
                 StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, angle, length);
                 HandTakeStick(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
                 data->mode = CREATE_STICK;
@@ -132,14 +131,12 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
             StickfigureEdge* e = &s->edges.data[data->hand.edge.edge.edge];
             Vector2 from = s->joints.data[e->from].pos;
             float angle = PivotAngleFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.angle;
-            /* float length = Vector2Distance(from, worldPos) + data->hand.edge.pointerOffset.length; */
             float length = PivotDistanceFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.length;
             PivotMoveEdge(s, data->hand.edge.edge.edge, angle, length);
             break;
         case HAND_HOLDING_STICKFIGURE:
-            s = &data->stickfigure.data[data->hand.stickfigure.figure];
-            s->position = Vector2Add(data->hand.stickfigure.initialStickfigure, Vector2Subtract(worldPos, data->hand.stickfigure.initialPointer));
-            /* printf("(%f, %f)\n", s->position.x, s->position.y); */
+            s = &data->stickfigure.data[data->hand.figure.figure];
+            s->position = Vector2Add(data->hand.figure.initialStickfigure, Vector2Subtract(worldPos, data->hand.figure.initialPointer));
             break;
         default:
             break;
@@ -167,6 +164,11 @@ void UpdateDrawFrame() {
             case MOVE_STICK:
                 data->rendererData.hand.status = HAND_EMPTY;
                 PivotMoveEdge(s, hand->edge.edge.edge, hand->edge.initial.angle, hand->edge.initial.length);
+                data->rendererData.mode = NORMAL;
+                break;
+            case MOVE_STICKFIGURE:
+                data->rendererData.hand.status = HAND_EMPTY;
+                s->position = data->rendererData.hand.figure.initialStickfigure;
                 data->rendererData.mode = NORMAL;
                 break;
             default:

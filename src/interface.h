@@ -44,7 +44,7 @@ typedef struct {
             unsigned int figure;
             Vector2 initialStickfigure;
             Vector2 initialPointer;
-        } stickfigure;
+        } figure;
     };
 } HandData;
 
