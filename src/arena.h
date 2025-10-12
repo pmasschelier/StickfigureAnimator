@@ -24,6 +24,9 @@ static inline Arena arena_create(size_t capacity) {
 
 static inline void arena_free(Arena* arena) {
     free(arena->memory);
+    arena->nextAllocation = 0;
+    arena->capacity = 0;
+    arena->memory = nullptr;
 }
 
 static inline void arena_reset(Arena *arena) { arena->nextAllocation = 0; }

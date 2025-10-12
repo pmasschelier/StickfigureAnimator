@@ -33,6 +33,7 @@ typedef struct {
         HAND_EMPTY,
         HAND_HOLDING_STICK,
         HAND_HOLDING_STICKFIGURE,
+        HAND_SELECT_EDGES
     } status;
     union {
         struct {
@@ -45,6 +46,9 @@ typedef struct {
             Vector2 initialStickfigure;
             Vector2 initialPointer;
         } figure;
+        struct {
+            Vector2 start;
+        } selection;
     };
 } HandData;
 

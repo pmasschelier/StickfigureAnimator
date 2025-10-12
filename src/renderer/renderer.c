@@ -15,17 +15,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef struct {
+    Rectangle selection;
+    bool active;
+} Selection;
+
 struct RendererContext {
     Arena arena;
-    Shader stickfigureShader;
-    Shader postprocessShader;
     RenderTexture2D rendertexture;
     Rectangle worldViewport;
     struct {
-        unsigned joint_radius;
-        unsigned viewport;
-    } locations;
+        Shader shader;
+        struct {
+            int jointRadius;
+        } loc;
+    } stickfigure;
+    struct {
+        Shader shader;
+        struct {
+            int worldViewport, cameraViewport, selection, selectionThickness, resolution;
+        } loc;
+    } postprocess;
+    struct {
+        GLuint vao;
+        GLuint vbo_v, vbo_t, ebo;
+    } gl;
     float joint_radius;
+    Selection selection;
 };
 
 const size_t SizeofRendererContext = sizeof(RendererContext);
@@ -76,30 +92,80 @@ MessageCallback( GLenum source,
             source_str, type_str, id, severity_str, message );
 }
 
+void renderer_set_selection(RendererContext* context, Rectangle selection) {
+    // fprintf(stderr, "Selection: (%f, %f, %f, %f)\n", context->selection.selection.x, context->selection.selection.y, context->selection.selection.width, context->selection.selection.height);
+    context->selection = (Selection) {
+        .active = true,
+        .selection = selection
+    };
+}
+
+void renderer_reset_selection(RendererContext* context) {
+    context->selection = (Selection) { .active = false, .selection = {}};
+}
+
 RendererContext* renderer_init(Rectangle worldViewport) {
     constexpr size_t ARENA_SIZE = 4096;
-    RendererContext* state = calloc(1, sizeof(RendererContext) + ARENA_SIZE);
-    state->arena = arena_init(ARENA_SIZE, state + 1);
-    state->worldViewport = worldViewport;
-    state->stickfigureShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/stick.frag");
-    if (state->stickfigureShader.id == 0) {
-        free(state);
+    Shader stickfigureShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/stick.frag");
+    if (stickfigureShader.id == 0)
         return nullptr;
-    }
-    state->postprocessShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/postprocess.frag");
-    if (state->stickfigureShader.id == 0) {
-        free(state);
+    Shader postprocessShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/postprocess.frag");
+    if (stickfigureShader.id == 0)
         return nullptr;
-    }
-
-    state->joint_radius = 1.f;
-    state->locations.joint_radius = GetShaderLocation(state->stickfigureShader, "joint_radius");
-    state->locations.viewport = GetShaderLocation(state->postprocessShader, "viewport");
 
     if(glewInit() != GLEW_OK) {
         fprintf(stderr, "FATAL ERROR: Failed to initialize GLEW\n");
         exit(-1);
     }
+
+    const Vector2 vertices[4] = {
+        { -1.f, 1.f },
+        { 1.f, 1.f },
+        { 1.f, -1.f},
+        { -1.f, -1.f}
+    };
+    const GLuint indices[6] = { 0, 3, 2, 2, 1, 0};
+    int position = stickfigureShader.locs[SHADER_LOC_VERTEX_POSITION];
+    if(position == -1) position = 0;
+
+    GLuint vao, vbo_v, ebo;
+    glCreateVertexArrays(1, &vao);
+
+    glCreateBuffers(1, &vbo_v);
+    glNamedBufferStorage(vbo_v, sizeof(vertices), vertices, 0);
+    glEnableVertexArrayAttrib(vao, position);
+    glVertexArrayAttribFormat(vao, position, 2, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribBinding(vao, position, 0);
+    glVertexArrayVertexBuffer(vao, 0, vbo_v, 0, sizeof(Vector2));
+    
+    glCreateBuffers(1, &ebo);
+    glNamedBufferStorage(ebo, sizeof(indices), indices, 0);
+    glVertexArrayElementBuffer(vao, ebo);
+    
+    RendererContext* state = calloc(1, sizeof(RendererContext));
+    *state = (RendererContext) {
+        .arena = arena_create(ARENA_SIZE),
+        .worldViewport = worldViewport,
+        .stickfigure = {
+            .shader = stickfigureShader,
+            .loc = {
+                .jointRadius = GetShaderLocation(stickfigureShader, "joint_radius"),
+            },
+        },
+        .postprocess = {
+            .shader = postprocessShader,
+            .loc = {
+                .worldViewport = GetShaderLocation(postprocessShader, "worldViewport"),
+                .cameraViewport = GetShaderLocation(postprocessShader, "cameraViewport"),
+                .selection = GetShaderLocation(postprocessShader, "selection"),
+                .selectionThickness = GetShaderLocation(postprocessShader, "selectionThickness"),
+                .resolution = GetShaderLocation(postprocessShader, "resolution"),
+            },
+        },
+        .joint_radius = 1.f,
+        .gl = { .vao = vao, .vbo_v = vbo_v, .vbo_t = 0, .ebo = ebo },
+        .selection = { .active = false, .selection = {} }
+    };
 
     // During init, enable debug output
     glEnable              ( GL_DEBUG_OUTPUT );
@@ -109,9 +175,14 @@ RendererContext* renderer_init(Rectangle worldViewport) {
 }
 
 void renderer_deinit(RendererContext *state) {
-    UnloadShader(state->stickfigureShader);
-    UnloadShader(state->postprocessShader);
+    arena_free(&state->arena);
+    UnloadShader(state->stickfigure.shader);
+    UnloadShader(state->postprocess.shader);
     UnloadRenderTexture(state->rendertexture);
+    glDeleteBuffers(1, &state->gl.vbo_v);
+    glDeleteBuffers(1, &state->gl.vbo_t);
+    glDeleteBuffers(1, &state->gl.ebo);
+    glDeleteVertexArrays(1, &state->gl.vao);
     free(state);
 }
 
@@ -144,19 +215,40 @@ typedef struct {
     GLfloat thickness;
 } SSBOStick;
 
-void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
+void DrawSelectionRect(RendererContext* context, Rectangle selection, float thickness, float dotlength) {
+    Vector2 screenThickness = {
+        2.f * thickness / context->rendertexture.texture.width,
+        2.f * thickness / context->rendertexture.texture.height,
+    };
+    const GLfloat vertices[][2] = {
+        { 0.f, 0.f },
+        { 1.f, 0.f },
+        { 1.f, 1.f },
+        { 0.f, 1.f },
+        { screenThickness.x, screenThickness.y },
+        { 1.f - screenThickness.x, screenThickness.y },
+        { 1.f - screenThickness.x, 1.f - screenThickness.y },
+        { screenThickness.x, 1.f - screenThickness.y },
+    };
+}
+
+static void renderer_update_screen(RendererContext* state, Vector2 res) {
+    bool update = false;
     if(state->rendertexture.id == 0) {
-        state->rendertexture = LoadRenderTexture(res.x, res.y);
+        update = true;
     } else if(state->rendertexture.texture.width != res.x
         || state->rendertexture.texture.height != res.y) {
+        update = true;
         UnloadRenderTexture(state->rendertexture);
-        state->rendertexture = LoadRenderTexture(res.x, res.y);
     }
+    if(!update)
+        return;
+
+    state->rendertexture = LoadRenderTexture(res.x, res.y);
     if(state->rendertexture.id == 0) {
         fprintf(stderr, "Error: Failed to create render texture of size (%f, %f)\n", res.x, res.y);
         return;
     }
-    
     Rectangle effectiveViewport = renderer_get_effective_viewport(state->worldViewport, res);
     const Vector2 wPositions[4] = {
         {effectiveViewport.x, effectiveViewport.y },
@@ -164,47 +256,27 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
         { effectiveViewport.x + effectiveViewport.width, effectiveViewport.y + effectiveViewport.height},
         { effectiveViewport.x, effectiveViewport.y + effectiveViewport.height}
     };
-    /* const Vector2 wPositions[4] = { */
-    /*     {0.f, 0.f }, */
-    /*     { res.x, 0.f }, */
-    /*     { res.x, res.y}, */
-    /*     { 0.f, res.y} */
-    /* }; */
-    const Vector2 vertices[4] = {
-        { -1.f, 1.f },
-        { 1.f, 1.f },
-        { 1.f, -1.f},
-        { -1.f, -1.f}
-    };
-    const GLuint indices[6] = { 0, 3, 2, 2, 1, 0};
-    GLuint vao, vbo_v, vbo_t, ebo;
-    int position = state->stickfigureShader.locs[SHADER_LOC_VERTEX_POSITION];
-    if(position == -1) position = 0;
-    int texcoord = state->stickfigureShader.locs[SHADER_LOC_VERTEX_TEXCOORD01];
+
+    int texcoord = state->stickfigure.shader.locs[SHADER_LOC_VERTEX_TEXCOORD01];
     if(texcoord == -1) texcoord = 1;
-    glCreateVertexArrays(1, &vao);
 
-    glCreateBuffers(1, &vbo_v);
-    glNamedBufferStorage(vbo_v, sizeof(vertices), vertices, 0);
-    glEnableVertexArrayAttrib(vao, position);
-    glVertexArrayAttribFormat(vao, position, 2, GL_FLOAT, GL_FALSE, 0);
-    glVertexArrayAttribBinding(vao, position, 0);
-    glVertexArrayVertexBuffer(vao, 0, vbo_v, 0, sizeof(Vector2));
+    GLuint vbo;
+    glCreateBuffers(1, &vbo);
+    glNamedBufferStorage(vbo, sizeof(wPositions), wPositions, 0);
+    glEnableVertexArrayAttrib(state->gl.vao, texcoord);
+    glVertexArrayAttribFormat(state->gl.vao, texcoord, 2, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribBinding(state->gl.vao, texcoord, 1);
+    glVertexArrayVertexBuffer(state->gl.vao, 1, vbo, 0, sizeof(Vector2));
+    glDeleteBuffers(1, &state->gl.vbo_t);
+    state->gl.vbo_t = vbo;
 
-    glCreateBuffers(1, &vbo_t);
-    glNamedBufferStorage(vbo_t, sizeof(wPositions), wPositions, 0);
-    glEnableVertexArrayAttrib(vao, texcoord);
-    glVertexArrayAttribFormat(vao, texcoord, 2, GL_FLOAT, GL_FALSE, 0);
-    glVertexArrayAttribBinding(vao, texcoord, 1);
-    glVertexArrayVertexBuffer(vao, 1, vbo_t, 0, sizeof(Vector2));
+    // GLfloat selectionThickness = 1.f / effectiveViewport.width;
+    SetShaderValue(state->postprocess.shader, state->postprocess.loc.resolution, &res, SHADER_UNIFORM_VEC2);
+    SetShaderValue(state->postprocess.shader, state->postprocess.loc.worldViewport, &effectiveViewport, SHADER_UNIFORM_VEC4);
+}
 
-    glCreateBuffers(1, &ebo);
-    glNamedBufferStorage(ebo, sizeof(indices), indices, 0);
-    glVertexArrayElementBuffer(vao, ebo);
-
-    SetShaderValue(state->stickfigureShader, state->locations.joint_radius, &pivotRadius, SHADER_UNIFORM_FLOAT);
-    SetShaderValue(state->postprocessShader, state->locations.viewport, &state->worldViewport, SHADER_UNIFORM_VEC4);
-    
+void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
+    renderer_update_screen(state, res);
     GLuint *edgesSSBO = nullptr, *jointsSSBO = nullptr;
     if(stickfigures.length > 0) {
         jointsSSBO = malloc(stickfigures.length * sizeof(GLuint));
@@ -231,32 +303,33 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
         }
     }
 
+    SetShaderValue(state->stickfigure.shader, state->stickfigure.loc.jointRadius, &pivotRadius, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(state->postprocess.shader, state->postprocess.loc.cameraViewport, &state->worldViewport, SHADER_UNIFORM_VEC4);
+    SetShaderValue(state->postprocess.shader, state->postprocess.loc.selection, &state->selection.selection, SHADER_UNIFORM_VEC4);
+
+    BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
     BeginTextureMode(state->rendertexture);
     ClearBackground(WHITE);
-    glBindVertexArray(vao);
+    glBindVertexArray(state->gl.vao);
     for (unsigned i = 0; i < stickfigures.length; i++) {
-        glUseProgram(state->stickfigureShader.id);
+        glUseProgram(state->stickfigure.shader.id);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, edgesSSBO[i]);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, jointsSSBO[i]);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
     }
-    glUseProgram(state->postprocessShader.id);
+    glUseProgram(state->postprocess.shader.id);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
     glUseProgram(0);
     glBindVertexArray(0);
     EndTextureMode();
+    EndBlendMode();
 
     glDeleteBuffers(stickfigures.length, edgesSSBO);
     free(edgesSSBO);
     glDeleteBuffers(stickfigures.length, jointsSSBO);
     free(jointsSSBO);
-    glDeleteBuffers(1, &vbo_v);
-    glDeleteBuffers(1, &vbo_t);
-    glDeleteBuffers(1, &ebo);
-    glDeleteVertexArrays(1, &vao);
-
     arena_reset(&state->arena);
 }
 

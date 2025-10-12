@@ -21,7 +21,7 @@ layout(std430, binding = 1) readonly buffer StickfigureJoints {
     vec2 joints[];
 };
 
-in vec2 fragTexCoord;
+in vec2 worldPos;
 
 out vec4 FragColor;
 
@@ -42,23 +42,23 @@ float sdStick(in vec2 p, in stick s) {
     vec2 start = joints[s.start];
     vec2 end = joints[s.end];
     if(s.type == 0)
-        d = sdSegment(fragTexCoord, start, end);
+        d = sdSegment(worldPos, start, end);
     else if(s.type == 1)
-        d = abs(sdCircle(fragTexCoord - 0.5 * (start + end), 0.5 * distance(start, end)));
+        d = abs(sdCircle(worldPos - 0.5 * (start + end), 0.5 * distance(start, end)));
     return d - 0.5 * s.thickness;
 }
 
 void main()
 {
     vec4 finalColor = vec4(0.0);
-    float dEdges = sdStick(fragTexCoord, sticks[0]);
+    float dEdges = sdStick(worldPos, sticks[0]);
     for(int i = 1; i < sticks.length(); i++) {
-        dEdges = min(dEdges, sdStick(fragTexCoord, sticks[i]));
+        dEdges = min(dEdges, sdStick(worldPos, sticks[i]));
     }
-    float dPivot = sdCircle(fragTexCoord - joints[0], joint_radius);
-    float dJoints = sdCircle(fragTexCoord - joints[1], joint_radius);
+    float dPivot = sdCircle(worldPos - joints[0], joint_radius);
+    float dJoints = sdCircle(worldPos - joints[1], joint_radius);
     for(int i = 2; i < joints.length(); i++) {
-        dJoints = min(dJoints, sdCircle(fragTexCoord - joints[i], joint_radius));
+        dJoints = min(dJoints, sdCircle(worldPos - joints[i], joint_radius));
     }
     float aEdges = 1.0 - step(0.0, dEdges); 
     vec4 color = vec4(sticks[0].color.rgb * aEdges, aEdges);

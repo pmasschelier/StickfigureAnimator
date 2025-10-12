@@ -19,5 +19,7 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
 void renderer_deinit(RendererContext *state);
 Vector2 renderer_get_screen_position(RendererContext* context, Vector2 worldPosition, Rectangle screenViewport);
 Vector2 renderer_get_world_position(RendererContext* context, Vector2 canvasPosition, Vector2 res);
+void renderer_set_selection(RendererContext* context, Rectangle selection);
+void renderer_reset_selection(RendererContext* context);
 
 #endif // !STICKFIGURE_RENDERER_H

@@ -52,6 +52,11 @@ void HandTakeStickfigure(RendererData* data, unsigned stickfigure, Vector2 point
     data->hand.figure.figure = stickfigure;
 }
 
+void HandStartSelection(RendererData* data, Vector2 pointer) {
+    data->hand.status = HAND_SELECT_EDGES;
+    data->hand.selection.start = pointer;
+}
+
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                         intptr_t userData) {
     RendererData *data = (void *)userData;
@@ -89,6 +94,8 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                 } else if(hoverEdge) {
                     HandTakeStick(data, edge, worldPos);
                     data->mode = MOVE_STICK;
+                } else {
+                    HandStartSelection(data, worldPos);
                 }
             }
             break;
@@ -100,6 +107,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
             break;
         }
         printf("Mode: %d\n", data->mode);
+        printf("Mode: %d, hand = %d\n", data->mode, data->hand.status);
         break;
     case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
         switch (data->mode) {
@@ -111,6 +119,9 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                 StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, angle, length);
                 HandTakeStick(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
                 data->mode = CREATE_STICK;
+            } else {
+                renderer_reset_selection(renderer_context);
+                data->hand.status = HAND_EMPTY;
             }
             break;
         case MOVE_STICK:
@@ -120,7 +131,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         default:
             break;
         }
-        printf("Mode: %d\n", data->mode);
+        printf("Mode: %d, hand = %d\n", data->mode, data->hand.status);
         break;
     default:
         break;
@@ -137,6 +148,12 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         case HAND_HOLDING_STICKFIGURE:
             s = &data->stickfigure.data[data->hand.figure.figure];
             s->position = Vector2Add(data->hand.figure.initialStickfigure, Vector2Subtract(worldPos, data->hand.figure.initialPointer));
+            break;
+        case HAND_SELECT_EDGES:
+            renderer_set_selection(renderer_context, (Rectangle) {
+                data->hand.selection.start.x, data->hand.selection.start.y,
+                worldPos.x - data->hand.selection.start.x, worldPos.y - data->hand.selection.start.y,
+            });
             break;
         default:
             break;
