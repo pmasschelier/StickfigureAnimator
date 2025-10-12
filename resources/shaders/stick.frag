@@ -48,6 +48,10 @@ float sdStick(in vec2 p, in stick s) {
     return d - 0.5 * s.thickness;
 }
 
+float distToAlpha(in float dist) {
+    return clamp(0.5 - dist / max(fwidth(dist), 1e-7), 0.0, 1.0);
+}
+
 void main()
 {
     vec4 finalColor = vec4(0.0);
@@ -60,7 +64,8 @@ void main()
     for(int i = 2; i < joints.length(); i++) {
         dJoints = min(dJoints, sdCircle(worldPos - joints[i], joint_radius));
     }
-    float aEdges = 1.0 - step(0.0, dEdges); 
+    // float aEdges = 1.0 - step(0.0, dEdges);
+    float aEdges = distToAlpha(dEdges);
     vec4 color = vec4(sticks[0].color.rgb * aEdges, aEdges);
     float aPivot = 1.0 - step(0, dPivot);
     color *= (1 - aPivot);

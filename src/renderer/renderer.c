@@ -215,29 +215,12 @@ typedef struct {
     GLfloat thickness;
 } SSBOStick;
 
-void DrawSelectionRect(RendererContext* context, Rectangle selection, float thickness, float dotlength) {
-    Vector2 screenThickness = {
-        2.f * thickness / context->rendertexture.texture.width,
-        2.f * thickness / context->rendertexture.texture.height,
-    };
-    const GLfloat vertices[][2] = {
-        { 0.f, 0.f },
-        { 1.f, 0.f },
-        { 1.f, 1.f },
-        { 0.f, 1.f },
-        { screenThickness.x, screenThickness.y },
-        { 1.f - screenThickness.x, screenThickness.y },
-        { 1.f - screenThickness.x, 1.f - screenThickness.y },
-        { screenThickness.x, 1.f - screenThickness.y },
-    };
-}
-
 static void renderer_update_screen(RendererContext* state, Vector2 res) {
     bool update = false;
     if(state->rendertexture.id == 0) {
         update = true;
-    } else if(state->rendertexture.texture.width != res.x
-        || state->rendertexture.texture.height != res.y) {
+    } else if(state->rendertexture.texture.width != (int)res.x
+        || state->rendertexture.texture.height != (int)res.y) {
         update = true;
         UnloadRenderTexture(state->rendertexture);
     }
