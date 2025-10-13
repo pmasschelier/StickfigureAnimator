@@ -10,12 +10,20 @@
 #define ARRAY_MIN_CAPACITY 64
 #endif
 
+#ifndef foreach
 #define foreach(array, var, type)                                           \
     for(unsigned index = 0; index < (array).length; index = (array).length) \
     for(type* var = &(array).data[index];                                   \
         index < (array.length) && (var = &(array).data[index]); index++)
+#endif
 
+#ifndef array_indexof
 #define array_indexof(array, x) (x - array.data)
+#endif
+
+#ifndef EMPTY_ARRAY
+#define EMPTY_ARRAY { .length = 0, .capacity = 0, .data = nullptr }
+#endif
 
 #define DEFINE_ARRAY_TYPE(type)                                                     \
     typedef struct {                                                                \

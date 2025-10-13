@@ -54,6 +54,7 @@ typedef struct {
 
 typedef struct {
     Stickfigure_array_t stickfigure;
+    PivotEdgeIndex_array_t selectedEdges;
     HandData hand;
     EditMode mode;
     StickfigurePartType stickType;

@@ -23,7 +23,8 @@ InterfaceData* InterfaceInit() {
     *data = (InterfaceData){
         .arena = arena_create(COMPONENT_ARENA_SIZE),
         .rendererData = {
-            .pivotRadius = 1.f
+            .selectedEdges = EMPTY_ARRAY,
+            .pivotRadius = 6.f
         },
         .context = {
             .arena = &data->arena,

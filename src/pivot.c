@@ -157,6 +157,25 @@ bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, P
     return false;
 }
 
+void PivotEdgesInsideRect(Stickfigure_array_t stickfigures, Rectangle rect, PivotEdgeIndex_array_t* edges) {
+    array_free_PivotEdgeIndex(edges);
+    foreach(stickfigures, s, Stickfigure) {
+        Rectangle rectRel = { rect.x - s->position.x, rect.y - s->position.y, rect.width, rect.height};
+        unsigned s_index = index;
+        foreach(s->edges, e, StickfigureEdge) {
+            Vector2 from = s->joints.data[e->from].pos;
+            Vector2 to = s->joints.data[e->to].pos;
+            if (CheckCollisionPointRec(from, rectRel) && CheckCollisionPointRec(to, rectRel)) {
+                PivotEdgeIndex* id = array_append_PivotEdgeIndex(edges);
+                *id = (PivotEdgeIndex){ s_index, index };
+                printf("(V) Edge (%d, %d) is selected\n", s_index, index);
+            } else {
+                printf("(X) Edge (%d, %d) is not selected\n", s_index, index);
+            }
+        }
+    }
+}
+
 double PivotAngleFrom(Stickfigure* s, unsigned int joint, Vector2 point) {
     StickfigureEdge* e = PivotFindRootEdge(s, joint);
     Vector2 edge = { 1.f, 0.f };

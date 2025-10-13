@@ -28,6 +28,7 @@ struct RendererContext {
         Shader shader;
         struct {
             int jointRadius;
+            int texel;
         } loc;
     } stickfigure;
     struct {
@@ -150,6 +151,7 @@ RendererContext* renderer_init(Rectangle worldViewport) {
             .shader = stickfigureShader,
             .loc = {
                 .jointRadius = GetShaderLocation(stickfigureShader, "joint_radius"),
+                .texel = GetShaderLocation(stickfigureShader, "texel"),
             },
         },
         .postprocess = {
@@ -213,6 +215,8 @@ typedef struct {
     GLuint end;
     GLuint type;
     GLfloat thickness;
+    GLuint selected;
+    GLuint padding[3];
 } SSBOStick;
 
 static void renderer_update_screen(RendererContext* state, Vector2 res) {
@@ -256,9 +260,11 @@ static void renderer_update_screen(RendererContext* state, Vector2 res) {
     // GLfloat selectionThickness = 1.f / effectiveViewport.width;
     SetShaderValue(state->postprocess.shader, state->postprocess.loc.resolution, &res, SHADER_UNIFORM_VEC2);
     SetShaderValue(state->postprocess.shader, state->postprocess.loc.worldViewport, &effectiveViewport, SHADER_UNIFORM_VEC4);
+    GLfloat texel = res.x / effectiveViewport.width;
+    SetShaderValue(state->stickfigure.shader, state->stickfigure.loc.texel, &texel, SHADER_UNIFORM_FLOAT);
 }
 
-void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
+void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, PivotEdgeIndex_array_t selected, Vector2 res, float pivotRadius) {
     renderer_update_screen(state, res);
     GLuint *edgesSSBO = nullptr, *jointsSSBO = nullptr;
     if(stickfigures.length > 0) {
@@ -267,6 +273,7 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
         edgesSSBO = malloc(stickfigures.length * sizeof(GLuint));
         glCreateBuffers(stickfigures.length, edgesSSBO);
         foreach(stickfigures, s, Stickfigure) {
+            unsigned s_index = index;
             glNamedBufferStorage(jointsSSBO[index], s->joints.length * sizeof(Vector2), nullptr, GL_MAP_WRITE_BIT);
             Vector2* joints = glMapNamedBuffer(jointsSSBO[index], GL_WRITE_ONLY);
             foreach(s->joints, j, StickfigureJoint) {
@@ -276,11 +283,19 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
             glNamedBufferStorage(edgesSSBO[index], s->edges.length * sizeof(SSBOStick), nullptr, GL_MAP_WRITE_BIT);
             SSBOStick* edges = glMapNamedBuffer(edgesSSBO[index], GL_WRITE_ONLY);
             foreach(s->edges, e, StickfigureEdge) {
-                edges[index].start = e->from;
-                edges[index].end = e->to;
-                edges[index].type = e->type;
-                edges[index].color = (Vector4) { 0.f, -1.f, 0.f, 1.f};
-                edges[index].thickness = e->thickness;
+                edges[index] = (SSBOStick) {
+                    .start = e->from,
+                    .end = e->to,
+                    .type = e->type,
+                    .color = (Vector4) { 0.f, -1.f, 0.f, 1.f},
+                    .thickness = e->thickness,
+                    .selected = false
+                };
+            }
+            foreach(selected, s, PivotEdgeIndex) {
+                if (s->figure == s_index) {
+                    edges[s->edge].selected = true;
+                }
             }
             glUnmapNamedBuffer(edgesSSBO[index]);
         }

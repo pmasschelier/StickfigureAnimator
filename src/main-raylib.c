@@ -150,10 +150,14 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
             s->position = Vector2Add(data->hand.figure.initialStickfigure, Vector2Subtract(worldPos, data->hand.figure.initialPointer));
             break;
         case HAND_SELECT_EDGES:
-            renderer_set_selection(renderer_context, (Rectangle) {
-                data->hand.selection.start.x, data->hand.selection.start.y,
-                worldPos.x - data->hand.selection.start.x, worldPos.y - data->hand.selection.start.y,
-            });
+            const Vector2 pos = Vector2Min(data->hand.selection.start, worldPos);
+            const Vector2 extent = { fabsf(data->hand.selection.start.x - worldPos.x), fabsf(data->hand.selection.start.y - worldPos.y)};
+            const Rectangle selection = { pos.x, pos.y, extent.x, extent.y};
+            renderer_set_selection(renderer_context, selection);
+            PivotEdgesInsideRect(data->stickfigure, selection, &data->selectedEdges);
+            foreach(data->selectedEdges, e, PivotEdgeIndex) {
+                printf("Selection nº%d: figure = %d, edge = %d\n", index, e->figure, e->edge);
+            }
             break;
         default:
             break;
@@ -214,6 +218,7 @@ void UpdateDrawFrame() {
         Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
     renderer_render(
         renderer_context, data->rendererData.stickfigure,
+        data->rendererData.selectedEdges,
         (Vector2){canvasData.boundingBox.width, canvasData.boundingBox.height},
         data->rendererData.pivotRadius);
     BeginDrawing();

@@ -36,6 +36,8 @@ typedef struct {
     StickfigureEdge_array_t edges;
 } Stickfigure;
 
+DEFINE_ARRAY_TYPE(Stickfigure)
+
 typedef struct {
     unsigned figure;
     unsigned joint;
@@ -46,7 +48,7 @@ typedef struct {
     unsigned edge;
 } PivotEdgeIndex;
 
-DEFINE_ARRAY_TYPE(Stickfigure)
+DEFINE_ARRAY_TYPE(PivotEdgeIndex)
 
 Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name, StickfigurePartType type, Vector2 pivot, double angle, double length);
 StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot, double angle, double length);
@@ -57,5 +59,6 @@ bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, Pi
 bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, PivotJointIndex* joint);
 void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double length);
 void PivotRemoveEdge(Stickfigure* s, unsigned int edge);
+void PivotEdgesInsideRect(Stickfigure_array_t stickfigures, Rectangle rect, PivotEdgeIndex_array_t* edges);
 
 #endif // !PIVOT_H

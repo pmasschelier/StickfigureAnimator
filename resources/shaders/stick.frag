@@ -1,6 +1,7 @@
 #version 460
 
 uniform float joint_radius;
+uniform float texel;
 
 #define STICK 0
 #define CIRCLE 1
@@ -11,6 +12,7 @@ struct stick {
     uint end;
     uint type;
     float thickness;
+    bool selected;
 };
 
 layout(std430, binding = 0) readonly buffer StickfigureEdges {
@@ -56,22 +58,38 @@ void main()
 {
     vec4 finalColor = vec4(0.0);
     float dEdges = sdStick(worldPos, sticks[0]);
+    float dSelected = sticks[0].selected ? dEdges : 1e7;
     for(int i = 1; i < sticks.length(); i++) {
-        dEdges = min(dEdges, sdStick(worldPos, sticks[i]));
+        float d = sdStick(worldPos, sticks[i]);
+        dEdges = min(dEdges, d);
+        if(sticks[i].selected) {
+            dSelected = min(dSelected, d);
+        }
     }
-    float dPivot = sdCircle(worldPos - joints[0], joint_radius);
-    float dJoints = sdCircle(worldPos - joints[1], joint_radius);
+
+    float wJointRadius = joint_radius / texel;
+    float dPivot = sdCircle(worldPos - joints[0], wJointRadius);
+    float dJoints = sdCircle(worldPos - joints[1], wJointRadius);
     for(int i = 2; i < joints.length(); i++) {
-        dJoints = min(dJoints, sdCircle(worldPos - joints[i], joint_radius));
+        dJoints = min(dJoints, sdCircle(worldPos - joints[i], wJointRadius));
     }
+
     // float aEdges = 1.0 - step(0.0, dEdges);
     float aEdges = distToAlpha(dEdges);
     vec4 color = vec4(sticks[0].color.rgb * aEdges, aEdges);
+
+    float selectionThickness = 2 / texel;
+    float aSelected = distToAlpha(abs(dSelected - selectionThickness) - selectionThickness);
+    color *= (1 - aSelected);
+    color += aSelected * vec4(1.0, 0.5, 0.0, 1.0);
+
     float aPivot = 1.0 - step(0, dPivot);
     color *= (1 - aPivot);
     color += aPivot * vec4(1.0, 0.6, 0.6, 1.0);
+
     float aJoints = 1.0 - step(0, dJoints);
     color *= (1 - aJoints);
     color += aJoints * vec4(1.0, 0.0, 0.0, 1.0);
+
     FragColor = color;
 }

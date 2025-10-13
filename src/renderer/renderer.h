@@ -15,7 +15,7 @@ typedef enum {
 
 RendererContext* renderer_init( Rectangle worldViewport);
 Texture2D* renderer_get_frame(RendererContext * state);
-void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius);
+void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, PivotEdgeIndex_array_t selected, Vector2 res, float pivotRadius);
 void renderer_deinit(RendererContext *state);
 Vector2 renderer_get_screen_position(RendererContext* context, Vector2 worldPosition, Rectangle screenViewport);
 Vector2 renderer_get_world_position(RendererContext* context, Vector2 canvasPosition, Vector2 res);
