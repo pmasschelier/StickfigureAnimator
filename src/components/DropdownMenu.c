@@ -2,8 +2,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-extern uint16_t selected_font;
-
 void RenderDropdownMenuItem(
     Clay_String text,
     ItemData data,
@@ -30,7 +28,7 @@ void RenderDropdownMenuItem(
         if (onClick) {
             if (Clay_Hovered()) {
                 background = (Clay_Color){ 0xFF, 0xFF, 0xFF, 0x33 };
-                context->clickableHovered = true;
+                context->pointer = POINTER_CLICKABLE;
             }
             SetButtonCallbacks(context->arena, (ButtonData){ .onMouseUp = onClick });
         }
@@ -46,7 +44,7 @@ void RenderDropdownMenuItem(
                 text,
                 CLAY_TEXT_CONFIG(
                     {
-                        .fontId = selected_font,
+                        .fontId = context->selected_font,
                         .fontSize = 16,
                         .textColor = { 255, 255, 255, 255 },
                     },

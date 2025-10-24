@@ -1,6 +1,8 @@
 sources = files(
   'main-raylib.c',
   'interface.c',
+  'components/ShaderImage.c',
+  'components/ColorPicker.c',
   'components/IconButton.c',
   'components/DropdownMenu.c',
   'components/MenubarButton.c',

@@ -2,8 +2,6 @@
 #include "components/utils.h"
 #include <stdint.h>
 
-extern uint16_t selected_font;
-
 static void CloseMenu(bool* open) {
     *open = false;
 }
@@ -25,14 +23,14 @@ void RenderMenuBarButton(
     ) {
         CLAY_TEXT(
             title,
-            CLAY_TEXT_CONFIG(
-                { .fontId = selected_font,
-                  .fontSize = 16,
-                  .textColor = { 255, 255, 255, 255 } }
+            CLAY_TEXT_CONFIG({
+                .fontId = context->selected_font,
+                .fontSize = 16,
+                .textColor = { 255, 255, 255, 255 } }
             )
         );
         if(Clay_Hovered()) {
-            context->clickableHovered = true;
+            context->pointer = POINTER_CLICKABLE;
         }
         if (Clay_GetPointerState().state
             == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {

@@ -17,8 +17,6 @@ extern RendererContext* renderer_context;
 
 InterfaceData* InterfaceInit() {
     const size_t COMPONENT_ARENA_SIZE = 4096;
-    void *memory = malloc(COMPONENT_ARENA_SIZE);
-    assert(memory);
     InterfaceData* data = malloc(sizeof(InterfaceData));
     *data = (InterfaceData){
         .arena = arena_create(COMPONENT_ARENA_SIZE),
@@ -28,10 +26,11 @@ InterfaceData* InterfaceInit() {
         },
         .context = {
             .arena = &data->arena,
-            .clickableHovered = false,
+            .pointer = POINTER_DEFAULT,
             .theme = {
                 .color = { PRIMARY_COLOR, (Clay_Color){}, SECONDARY_COLOR, (Clay_Color){} },
-            }
+            },
+            .selected_font = 0
         }
     };
     
@@ -61,15 +60,15 @@ void HandleChangeMode(void *data) {
 }
 
 void RenderFileMenu(void *priv, Callback_t* onMouseUp) {
-    Arena *arena = priv;
+    InterfaceData *data = priv;
     RenderDropdownMenuItem(
-        CLAY_STRING("New"), (ItemData){ 3, 0 }, nullptr, nullptr
+        CLAY_STRING("New"), (ItemData){ 3, 0 }, nullptr, &data->context
     );
     RenderDropdownMenuItem(
-        CLAY_STRING("Open"), (ItemData){ 3, 1 }, nullptr, nullptr
+        CLAY_STRING("Open"), (ItemData){ 3, 1 }, nullptr, &data->context
     );
     RenderDropdownMenuItem(
-        CLAY_STRING("Close"), (ItemData){ 3, 2 }, nullptr, nullptr
+        CLAY_STRING("Close"), (ItemData){ 3, 2 }, nullptr, &data->context
     );
 }
 
@@ -150,7 +149,7 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                     CLAY_ID("FileMenu"),
                     &data->isMenuBarButtonOpen[0],
                     RenderFileMenu,
-                    &data->arena,
+                    data,
                     &data->context
                 );
                 RenderMenuBarButton(
@@ -191,20 +190,21 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                 .layout = { .sizing = layoutExpand },
             }
         ) {
-            CLAY(
-                { .id = CLAY_ID("Sidebar"),
-                  .backgroundColor = SECONDARY_COLOR,
-                  .layout = { .layoutDirection = CLAY_TOP_TO_BOTTOM,
-                              .padding = CLAY_PADDING_ALL(16),
-                              .childGap = 8,
-                              .sizing = { .width = CLAY_SIZING_FIXED(250),
-                                          .height = CLAY_SIZING_GROW(0) } } }
-            ) {
+            CLAY({
+                .id = CLAY_ID("left-sidebar"),
+                .backgroundColor = SECONDARY_COLOR,
+                .layout = {
+                    .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                    .padding = CLAY_PADDING_ALL(16),
+                    .childGap = 8,
+                    .sizing = { CLAY_SIZING_FIXED(250), CLAY_SIZING_GROW(0) }
+                }
+            }) {
                 for (unsigned i = 0; i < data->rendererData.stickfigure.length; i++) {
                     Stickfigure* s = &data->rendererData.stickfigure.data[i];
                     Callback_t* cb = CallbackCreateGroup(&data->arena, (CallbackIndexFn)HandleSelectStickfigure, data->rendererData.stickfigure.length, &data->selectedStickfigure);
                     Clay_String name = { strlen(s->name), s->name };
-                    bool selected = (int)i == data->selectedStickfigure;
+                    const bool selected = (int)i == data->selectedStickfigure;
 
                     CLAY({
                         .layout = {
@@ -220,11 +220,11 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                             SetButtonCallbacks(&data->arena, (ButtonData) { .onMouseUp = CALLBACK_INDEX(cb, i)} );
                         CLAY_TEXT(
                             name,
-                            CLAY_TEXT_CONFIG(
-                                { .fontId = FONT_ID_BODY_32,
+                            CLAY_TEXT_CONFIG({
+                                    .fontId = FONT_ID_BODY_32,
                                     .fontSize = 20,
-                                    .textColor = { 255, 255, 255, 255 } }
-                            )
+                                    .textColor = { 255, 255, 255, 255 }
+                            })
                         );
                     }
                 }
@@ -234,7 +234,19 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                       .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
                       .padding = CLAY_PADDING_ALL(16) } }
             ) {
-                RenderCanvas(CLAY_ID("canvas"), CanvasEventHandler, &data->rendererData, renderer_get_frame(renderer_context));
+                RenderCanvas(CLAY_ID("canvas"), CanvasEventHandler, &data->rendererData, renderer_get_frame(renderer_context), &data->context);
+            }
+            CLAY({
+                .id = CLAY_ID("right-sidebar"),
+                .backgroundColor = SECONDARY_COLOR,
+                .layout = {
+                    .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                    .padding = CLAY_PADDING_ALL(16),
+                    .childGap = 8,
+                    .sizing = { CLAY_SIZING_FIT(250), CLAY_SIZING_GROW(0) }
+                }
+            }) {
+                RenderColorPicker(CLAY_STRING("ColorPicker"), &data->context);
             }
         }
     }

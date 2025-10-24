@@ -27,7 +27,6 @@ bool debugEnabled = false;
     .height = boundingbox.height                                               \
   }
 
-uint16_t selected_font = 0;
 Font fonts[2];
 
 void HandTakeStick(RendererData* data, PivotEdgeIndex index, Vector2 pointer) {
@@ -207,12 +206,16 @@ void UpdateDrawFrame() {
     Clay_UpdateScrollContainers(true, (Clay_Vector2){mouseWheelX, mouseWheelY},
                                 GetFrameTime());
     // Generate the auto layout for rendering
-    data->context.clickableHovered = false;
+    data->context.pointer = POINTER_DEFAULT;
     Clay_RenderCommandArray renderCommands = InterfaceLayout(data);
-    if (data->context.clickableHovered)
-        SetMouseCursor(MOUSE_CURSOR_POINTING_HAND);
-    else
-        SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+    switch (data->context.pointer) {
+        case POINTER_CLICKABLE:
+            SetMouseCursor(MOUSE_CURSOR_POINTING_HAND);
+            break;
+        default:
+            SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+            break;
+    }
 
     Clay_ElementData canvasData =
         Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
@@ -262,7 +265,7 @@ int main(void) {
     Clay_Raylib_Initialize(1024, 768, "Clay - Raylib Renderer Example",
                             FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE |
                                 FLAG_MSAA_4X_HINT);
-    renderer_context = malloc(SizeofRendererContext);
+    glfwMaximizeWindow(GetWindowHandle());
     renderer_context = renderer_init((Rectangle){0, 0, 100, 100});
     if (renderer_context == nullptr)
         return EXIT_FAILURE;

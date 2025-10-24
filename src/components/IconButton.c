@@ -7,7 +7,7 @@ void RenderIconButtonGroup(Clay_ElementId id, Texture2D* icons, Callback_t* onSe
     Clay_BorderElementConfig border = { .color = { 0.f, 0.f, 0.f, 255.f }};
     if(Clay_PointerOver(id)) {
         border.width = (Clay_BorderWidth) { 1.f, 1.f, 1.f, 1.f, 1.f };
-        context->clickableHovered = true;
+        context->pointer = POINTER_CLICKABLE;
     }
     CLAY({
         .id = id,
@@ -45,7 +45,7 @@ void RenderIconButton(Clay_ElementId id, Texture2D* icon, Callback_t* onMouseUp,
     Clay_BorderElementConfig border = { .color = { 0.f, 0.f, 0.f, 255.f }};
     if(Clay_PointerOver(id)) {
         border.width = (Clay_BorderWidth) { 1.f, 1.f, 1.f, 1.f, 0.f };
-        context->clickableHovered = true;
+        context->pointer = POINTER_CLICKABLE;
     }
     CLAY({
         .id = id,

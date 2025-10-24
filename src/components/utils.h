@@ -14,6 +14,10 @@ typedef struct {
     unsigned item_count;
 } ItemData;
 
+typedef struct {
+    float hue, saturation, value;
+} ColorHSV;
+
 typedef enum {
     ROLE_PRIMARY,
     ROLE_PRIMARY_FOREGROUND,
@@ -26,11 +30,18 @@ typedef struct {
     Clay_Color color[ROLE_COUNT];
 } ComponentTheme;
 
+typedef enum {
+    POINTER_DEFAULT,
+    POINTER_CLICKABLE,
+} PointerMode;
+
 typedef struct {
     Arena* arena;
     ComponentTheme theme;
-    bool clickableHovered;
+    PointerMode pointer;
     bool arenaOverflowed;
+    uint16_t selected_font;
+    Clay_ElementId active;
 } ComponentContext;
 
 #endif // !COMPONENTS_UTILS_H
