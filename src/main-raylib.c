@@ -59,7 +59,7 @@ void HandStartSelection(RendererData* data, Vector2 pointer) {
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                         intptr_t userData) {
     RendererData *data = (void *)userData;
-    Clay_ElementData elementData = Clay_GetElementData(elementId);
+    const Clay_ElementData elementData = Clay_GetElementData(elementId);
     /* Rectangle defaultViewport = {} */
     Vector2 canvasPosition = {
         .x = pointerInfo.position.x - elementData.boundingBox.x,
@@ -72,27 +72,41 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     };
     Vector2 worldPos =
         renderer_get_world_position(renderer_context, canvasPosition, resolution);
-    bool isShiftPressed = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-    bool isControlPressed = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+    const bool isShiftPressed = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    const bool isControlPressed = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
     PivotEdgeIndex edge;
-    bool hoverEdge = PivotPointCollisionEdge(data->stickfigure, worldPos, &edge);
+    const bool hoverEdge = PivotPointCollisionEdge(data->stickfigure, worldPos, &edge);
     PivotJointIndex joint;
-    bool hoverJoint = PivotPointCollisionJoint(data->stickfigure, worldPos, &joint);
+    const bool hoverJoint = PivotPointCollisionJoint(data->stickfigure, worldPos, &joint);
+    if (hoverJoint) {
+        Stickfigure* s = &data->stickfigure.data[joint.figure];
+        edge.figure = joint.figure;
+        edge.edge = array_indexof(s->edges, PivotFindRootEdge(s, joint.joint));
+    }
 
     switch (pointerInfo.state) {
     case CLAY_POINTER_DATA_PRESSED_THIS_FRAME:
         switch (data->mode) {
         case NORMAL:
             if(!isShiftPressed) {
-                if(hoverEdge && isControlPressed) {
-                    HandTakeStickfigure(data, edge.figure, worldPos);
-                    data->mode = MOVE_STICKFIGURE;
-                } else if (hoverJoint && (joint.joint == 0)) {
-                    HandTakeStickfigure(data, joint.figure, worldPos);
-                    data->mode = MOVE_STICKFIGURE;
+                if (hoverJoint) {
+                    if (joint.joint == 0) {
+                        HandTakeStickfigure(data, joint.figure, worldPos);
+                    } else {
+                        HandTakeStick(data, edge, worldPos);
+                        data->mode = MOVE_STICK;
+                    }
                 } else if(hoverEdge) {
-                    HandTakeStick(data, edge, worldPos);
-                    data->mode = MOVE_STICK;
+                    if (isControlPressed) {
+                        HandTakeStick(data, edge, worldPos);
+                        data->mode = MOVE_STICK;
+                    } else {
+                        data->selectedEdges.length = 0;
+                        PivotEdgeIndex* index = array_append_PivotEdgeIndex(&data->selectedEdges);
+                        *index = edge;
+                        HandTakeStickfigure(data, edge.figure, worldPos);
+                        data->mode = MOVE_STICKFIGURE;
+                    }
                 } else {
                     HandStartSelection(data, worldPos);
                 }
@@ -111,19 +125,20 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
     case CLAY_POINTER_DATA_RELEASED_THIS_FRAME:
         switch (data->mode) {
         case NORMAL:
-            if(hoverJoint && isShiftPressed) {
+            if (!isShiftPressed) {
+                renderer_reset_selection(renderer_context);
+                data->hand.status = HAND_EMPTY;
+            }
+            else if(hoverJoint) {
                 Stickfigure* s = &data->stickfigure.data[joint.figure];
                 const PivotEdgeData edgeData = {
                     .angle = PivotAngleFrom(s, joint.joint, worldPos),
                     .length = PivotDistanceFrom(s, joint.joint, worldPos),
                     .color = ColorFromHSV(data->color->hue, data->color->saturation, data->color->value)
                 };
-                StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, edgeData);
+                const StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, edgeData);
                 HandTakeStick(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
                 data->mode = CREATE_STICK;
-            } else {
-                renderer_reset_selection(renderer_context);
-                data->hand.status = HAND_EMPTY;
             }
             break;
         case MOVE_STICK:
@@ -143,8 +158,8 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         case HAND_HOLDING_STICK:
             s = &data->stickfigure.data[data->hand.edge.edge.figure];
             StickfigureEdge* e = &s->edges.data[data->hand.edge.edge.edge];
-            float angle = PivotAngleFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.angle;
-            float length = PivotDistanceFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.length;
+            const double angle = PivotAngleFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.angle;
+            const double length = PivotDistanceFrom(s, e->from, worldPos) + data->hand.edge.pointerOffset.length;
             PivotMoveEdge(s, data->hand.edge.edge.edge, angle, length);
             break;
         case HAND_HOLDING_STICKFIGURE:
