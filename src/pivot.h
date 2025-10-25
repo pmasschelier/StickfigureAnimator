@@ -11,13 +11,18 @@ typedef enum {
 } StickfigurePartType;
 
 typedef struct {
+    double angle;
+    double length;
+    Color color;
+} PivotEdgeData;
+
+typedef struct {
     unsigned from;
     unsigned to;
     StickfigurePartType type;
-    double angle;
     double rootAngle;
-    double length;
     double thickness;
+    PivotEdgeData data;
 } StickfigureEdge;
 
 typedef struct {
@@ -50,8 +55,8 @@ typedef struct {
 
 DEFINE_ARRAY_TYPE(PivotEdgeIndex)
 
-Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name, StickfigurePartType type, Vector2 pivot, double angle, double length);
-StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot, double angle, double length);
+Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name, StickfigurePartType type, Vector2 pivot, PivotEdgeData data);
+StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot, PivotEdgeData data);
 void PivotFreeAll(Stickfigure_array_t* array);
 double PivotAngleFrom(Stickfigure* s, unsigned int joint, Vector2 point);
 double PivotDistanceFrom(Stickfigure* s, unsigned int joint, Vector2 point);

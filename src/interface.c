@@ -22,7 +22,11 @@ InterfaceData* InterfaceInit() {
         .arena = arena_create(COMPONENT_ARENA_SIZE),
         .rendererData = {
             .selectedEdges = EMPTY_ARRAY,
-            .pivotRadius = 6.f
+            .pivotRadius = 6.f,
+            .color = &data->colorPicker.color,
+        },
+        .colorPicker = {
+            .color = {0.f, 0.f, 0.f}
         },
         .context = {
             .arena = &data->arena,
@@ -46,7 +50,12 @@ void HandleCreateStickfigure(RendererData* data) {
     Clay_ElementData canvas = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
     printf("HandleCreateStickfigure (%f, %f, %f, %f)\n", canvas.boundingBox.x, canvas.boundingBox.y, canvas.boundingBox.width, canvas.boundingBox.height);
     Vector2 pivot = renderer_get_world_position(renderer_context, (Vector2){ canvas.boundingBox.width / 2.f, canvas.boundingBox.height / 2.f}, (Vector2) { canvas.boundingBox.width, canvas.boundingBox.height });
-    PivotCreateStickfigure(&data->stickfigure, nullptr, data->stickType, (Vector2) { pivot.x, pivot.y - 5.f }, PI / 2, 10.f);
+    PivotEdgeData edgeData = {
+        .angle = PI / 2,
+        .length = 10.f,
+        .color = ColorFromHSV(data->color->hue, data->color->saturation, data->color->value)
+    };
+    PivotCreateStickfigure(&data->stickfigure, nullptr, data->stickType, (Vector2) { pivot.x, pivot.y - 5.f }, edgeData);
 }
 
 typedef struct {
@@ -105,6 +114,17 @@ void HandleSelectStickfigure(unsigned requested, unsigned* type) {
     *type = requested;
 }
 
+typedef struct {
+    PivotEdgeIndex_array_t* selected;
+    Stickfigure_array_t* stickfigures;
+} HandleChangeColorData;
+void HandleChangeColor(ColorHSV color, HandleChangeColorData* data) {
+    printf("Change color (%f, %f, %f)\n", color.hue, color.saturation, color.value);
+    foreach(*data->selected, i, PivotEdgeIndex) {
+        StickfigureEdge* edge = &data->stickfigures->data[i->figure].edges.data[i->edge];
+        edge->data.color = ColorFromHSV(color.hue, color.saturation, color.value);
+    }
+}
 
 Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
     arena_reset(&data->arena);
@@ -246,7 +266,15 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                     .sizing = { CLAY_SIZING_FIT(250), CLAY_SIZING_GROW(0) }
                 }
             }) {
-                RenderColorPicker(CLAY_STRING("ColorPicker"), &data->context);
+                HandleChangeColorData* handleChangeColorData = arena_allocate(&data->arena, 1, sizeof(HandleChangeColorData));
+                handleChangeColorData->stickfigures = &data->rendererData.stickfigure;
+                handleChangeColorData->selected = &data->rendererData.selectedEdges;
+                RenderColorPicker(
+                    CLAY_STRING("ColorPicker"),
+                    &data->colorPicker,
+                    (OnChangeColor) { (OnChangeColorFn)HandleChangeColor, handleChangeColorData},
+                    &data->context
+                );
             }
         }
     }

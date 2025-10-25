@@ -35,12 +35,12 @@ void HandTakeStick(RendererData* data, PivotEdgeIndex index, Vector2 pointer) {
     data->hand.status = HAND_HOLDING_STICK;
     data->hand.edge.edge = index;
     data->hand.edge.initial = (PolarCoords) {
-        .angle = edge->angle,
-        .length = edge->length
+        .angle = edge->data.angle,
+        .length = edge->data.length
     };
     data->hand.edge.pointerOffset = (PolarCoords) {
-        .angle = edge->angle - PivotAngleFrom(s, edge->from, pointer),
-        .length = edge->length - PivotDistanceFrom(s, edge->from, pointer)
+        .angle = edge->data.angle - PivotAngleFrom(s, edge->from, pointer),
+        .length = edge->data.length - PivotDistanceFrom(s, edge->from, pointer)
     };
 }
 
@@ -113,9 +113,12 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         case NORMAL:
             if(hoverJoint && isShiftPressed) {
                 Stickfigure* s = &data->stickfigure.data[joint.figure];
-                double angle = PivotAngleFrom(s, joint.joint, worldPos);
-                double length = PivotDistanceFrom(s, joint.joint, worldPos);
-                StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, angle, length);
+                const PivotEdgeData edgeData = {
+                    .angle = PivotAngleFrom(s, joint.joint, worldPos),
+                    .length = PivotDistanceFrom(s, joint.joint, worldPos),
+                    .color = ColorFromHSV(data->color->hue, data->color->saturation, data->color->value)
+                };
+                StickfigureEdge *part = PivotAddStick( s, data->stickType, joint.joint, edgeData);
                 HandTakeStick(data, (PivotEdgeIndex) { joint.figure, array_indexof(s->edges, part)}, worldPos);
                 data->mode = CREATE_STICK;
             } else {

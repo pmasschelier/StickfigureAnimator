@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static inline Vector2 PivotComputePosition(Vector2 origin, double angle, double length) {
+static Vector2 PivotComputePosition(Vector2 origin, double angle, double length) {
     return (Vector2) {
         origin.x + length * cos(angle),
         origin.y + length * sin(angle),
@@ -15,8 +15,8 @@ static inline Vector2 PivotComputePosition(Vector2 origin, double angle, double 
 }
 
 static void PivotUpdateJointsRec(Stickfigure* s, StickfigureEdge* edge, double angle) {
-    double rootAngle = angle + edge->angle;
-    s->joints.data[edge->to].pos = PivotComputePosition(s->joints.data[edge->from].pos, rootAngle, edge->length);
+    double rootAngle = angle + edge->data.angle;
+    s->joints.data[edge->to].pos = PivotComputePosition(s->joints.data[edge->from].pos, rootAngle, edge->data.length);
     foreach(s->edges, next, StickfigureEdge) {
         if(next->from == edge->to) {
             next->rootAngle = rootAngle;
@@ -25,8 +25,8 @@ static void PivotUpdateJointsRec(Stickfigure* s, StickfigureEdge* edge, double a
     }
 }
 
-Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name, StickfigurePartType type, Vector2 pivot, double angle, double length) {
-    int index = array->length;
+Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name, StickfigurePartType type, Vector2 pivot, PivotEdgeData data) {
+    unsigned index = array->length;
     Stickfigure* sf = array_append_Stickfigure(array);
     if(!name)
         snprintf(sf->name, STICKFIGURE_NAME_LENGTH, "Stickfigure #%d", index);
@@ -40,14 +40,13 @@ Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name
         .from = 0,
         .to = 1,
         .type = type,
-        .angle = angle,
-        .length = length,
-        .thickness = 1.f
+        .data = data,
+        .thickness = 1.f,
     };
     StickfigureJoint* ppivot = array_append_StickfigureJoint(&sf->joints);
     ppivot->pos = Vector2Zero();
     StickfigureJoint* phandle = array_append_StickfigureJoint(&sf->joints);
-    phandle->pos = PivotComputePosition(Vector2Zero(), angle, length);
+    phandle->pos = PivotComputePosition(Vector2Zero(), data.angle, data.length);
     return sf;
 }
 
@@ -59,11 +58,11 @@ StickfigureEdge* PivotFindRootEdge(Stickfigure* s, unsigned int joint) {
     return nullptr;
 }
 
-StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot, double angle, double length) {
+StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned int pivot, PivotEdgeData data) {
     assert(s && pivot < s->joints.length);
     StickfigureEdge* root = PivotFindRootEdge(s, pivot);
-    double rootAngle = root ? root->rootAngle + root->angle : 0.0;
-    int joint = s->joints.length;
+    double rootAngle = root ? root->rootAngle + root->data.angle : 0.0;
+    const unsigned joint = s->joints.length;
     array_append_StickfigureJoint(&s->joints);
     StickfigureEdge* edge = array_append_StickfigureEdge(&s->edges);
     *edge = (StickfigureEdge) {
@@ -71,8 +70,7 @@ StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigne
         .to = joint,
         .type = type,
         .rootAngle = rootAngle,
-        .angle = angle,
-        .length = length,
+        .data = data,
         .thickness = 1.f,
     };
     PivotUpdateJointsRec(s, edge, rootAngle);
@@ -194,8 +192,8 @@ double PivotDistanceFrom(Stickfigure* s, unsigned int joint, Vector2 point) {
 void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double length) {
     assert(edge < s->edges.length);
     StickfigureEdge* e = &s->edges.data[edge];
-    e->angle = angle;
-    e->length = length;
+    e->data.angle = angle;
+    e->data.length = length;
     PivotUpdateJointsRec(s, e, e->rootAngle);
 }
 

@@ -3,6 +3,7 @@
 
 #include "arena.h"
 #include "clay/clay.h"
+#include "components/components.h"
 #include "components/utils.h"
 #include "raylib.h"
 #include "src/pivot.h"
@@ -61,6 +62,7 @@ typedef struct {
     Vector2 offset;
     float zoom;
     float pivotRadius;
+    ColorHSV* color;
 } RendererData;
 
 
@@ -85,6 +87,7 @@ typedef struct {
     RendererData rendererData;
     Texture2D icons[ICON_COUNT];
     ComponentContext context;
+    ColorPickerState colorPicker;
 } InterfaceData;
 
 void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData);

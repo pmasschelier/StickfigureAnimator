@@ -58,10 +58,16 @@ void main()
 {
     vec4 finalColor = vec4(0.0);
     float dEdges = sdStick(worldPos, sticks[0]);
+
+    float aEdges = distToAlpha(dEdges);
+    vec4 color = aEdges * sticks[0].color;
+
     float dSelected = sticks[0].selected ? dEdges : 1e7;
     for(int i = 1; i < sticks.length(); i++) {
         float d = sdStick(worldPos, sticks[i]);
-        dEdges = min(dEdges, d);
+        aEdges = distToAlpha(d);
+        color *= (1 - aEdges);
+        color += aEdges * sticks[i].color;
         if(sticks[i].selected) {
             dSelected = min(dSelected, d);
         }
@@ -73,10 +79,6 @@ void main()
     for(int i = 2; i < joints.length(); i++) {
         dJoints = min(dJoints, sdCircle(worldPos - joints[i], wJointRadius));
     }
-
-    // float aEdges = 1.0 - step(0.0, dEdges);
-    float aEdges = distToAlpha(dEdges);
-    vec4 color = vec4(sticks[0].color.rgb * aEdges, aEdges);
 
     float selectionThickness = 2 / texel;
     float aSelected = distToAlpha(abs(dSelected - selectionThickness) - selectionThickness);

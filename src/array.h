@@ -14,7 +14,7 @@
 #define foreach(array, var, type)                                           \
     for(unsigned index = 0; index < (array).length; index = (array).length) \
     for(type* var = &(array).data[index];                                   \
-        index < (array.length) && (var = &(array).data[index]); index++)
+        index < (array).length && (var = &(array).data[index]); index++)
 #endif
 
 #ifndef array_indexof
@@ -38,7 +38,10 @@
             array->capacity = ARRAY_MIN_CAPACITY;                                   \
         }                                                                           \
         if(array->capacity < array->length + 1) {                                   \
-            array->data = realloc(array->data, array->capacity * 2);                \
+            void* memory = realloc(array->data, array->capacity * 2);               \
+            if(memory == nullptr)                                                   \
+                return nullptr;                                                     \
+            array->data = memory;                                                   \
             array->capacity *= 2;                                                   \
         }                                                                           \
         array->length += 1;                                                         \

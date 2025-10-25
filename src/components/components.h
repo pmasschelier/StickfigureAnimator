@@ -3,9 +3,10 @@
 
 #include "raylib.h"
 #include "utils.h"
+#include "ColorPicker.h"
 
 void RenderShaderImage(Clay_ElementId id, Clay_Sizing sizing, RenderTexture* texture, Shader shader);
-void RenderColorPicker(Clay_String id, ComponentContext* context);
+
 void RenderCanvas(Clay_ElementId id, OnHoverFn onHoverFunction, void* hoverFnData, Texture2D* texture, ComponentContext* context);
 void RenderDropdownMenuItem(
     Clay_String text,

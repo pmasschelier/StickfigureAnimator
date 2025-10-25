@@ -287,7 +287,12 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, P
                     .start = e->from,
                     .end = e->to,
                     .type = e->type,
-                    .color = (Vector4) { 0.f, -1.f, 0.f, 1.f},
+                    .color = (Vector4) {
+                        (float)e->data.color.r / 255.f,
+                        (float)e->data.color.g / 255.f,
+                        (float)e->data.color.b / 255.f,
+                        1.f
+                    },
                     .thickness = e->thickness,
                     .selected = false
                 };

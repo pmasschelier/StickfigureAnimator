@@ -14,10 +14,6 @@ typedef struct {
     unsigned item_count;
 } ItemData;
 
-typedef struct {
-    float hue, saturation, value;
-} ColorHSV;
-
 typedef enum {
     ROLE_PRIMARY,
     ROLE_PRIMARY_FOREGROUND,
