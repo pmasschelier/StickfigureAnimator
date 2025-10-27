@@ -16,6 +16,7 @@ static Vector2 PivotComputePosition(Vector2 origin, double angle, double length)
 
 static void PivotUpdateJointsRec(Stickfigure* s, StickfigureEdge* edge, double angle) {
     double rootAngle = angle + edge->data.angle;
+    // fprintf(stderr, "joints.capacity = %d, joints.length = %d, edge = (%d, %d)\n", s->joints.capacity, s->joints.length, edge->from, edge->to);
     s->joints.data[edge->to].pos = PivotComputePosition(s->joints.data[edge->from].pos, rootAngle, edge->data.length);
     foreach(s->edges, next, StickfigureEdge) {
         if(next->from == edge->to) {
@@ -85,39 +86,35 @@ void PivotFreeAll(Stickfigure_array_t* array) {
     array_free_Stickfigure(array);
 }
 
-float sdSegment(Vector2 p, Vector2 a, Vector2 b)
+static float sdSegment(Vector2 p, Vector2 a, Vector2 b)
 {
-    Vector2 pa = Vector2Subtract(p, a);
-    Vector2 ba = Vector2Subtract(b, a);
-    float h = Clamp(Vector2DotProduct(pa,ba) / Vector2DotProduct(ba,ba), 0.0, 1.0 );
+    const Vector2 pa = Vector2Subtract(p, a);
+    const Vector2 ba = Vector2Subtract(b, a);
+    const float h = Clamp(Vector2DotProduct(pa,ba) / Vector2DotProduct(ba,ba), 0.f, 1.f );
     return Vector2Length(Vector2Subtract(pa, Vector2Scale(ba, h)));
 }
 
-float sdRing(Vector2 p, Vector2 a, Vector2 b) {
-    Vector2 center = Vector2Scale(Vector2Add(a, b), 0.5f);
-    float radius = 0.5f * Vector2Distance(a, b);
+static float sdRing(Vector2 p, Vector2 a, Vector2 b) {
+    const Vector2 center = Vector2Scale(Vector2Add(a, b), 0.5f);
+    const float radius = 0.5f * Vector2Distance(a, b);
     return fabsf(Vector2Distance(p, center) - radius);
 }
 
-bool PivotPointCollisionRec(Stickfigure* s, Vector2 point, unsigned joint, unsigned *edge) {
+static bool PivotPointCollisionStickfigure(Stickfigure* s, Vector2 point, unsigned *edge) {
     foreach(s->edges, e, StickfigureEdge) {
-        if(e->from == joint) {
-            float d1;
-            Vector2 from = s->joints.data[e->from].pos;
-            Vector2 to = s->joints.data[e->to].pos;
-            if(e->type == STICKFIGURE_STICK) {
-                d1 = sdSegment(point, from, to);
-            } else {
-                d1 = sdRing(point, from, to);
-            }
-            d1 -= 0.5f * e->thickness;
-            float d2 = Vector2Distance(point, s->joints.data[e->from].pos) - 0.5f * e->thickness;
-            if(fmax(-d2, d1) < 0.f) {
-                *edge = index;
-                return true;
-            }
-            if(PivotPointCollisionRec(s, point, e->to, edge))
-                return true;
+        double d1;
+        Vector2 from = s->joints.data[e->from].pos;
+        Vector2 to = s->joints.data[e->to].pos;
+        if(e->type == STICKFIGURE_STICK) {
+            d1 = sdSegment(point, from, to);
+        } else {
+            d1 = sdRing(point, from, to);
+        }
+        d1 -= 0.5f * e->thickness;
+        double d2 = Vector2Distance(point, s->joints.data[e->from].pos) - 0.5f * e->thickness;
+        if(fmax(-d2, d1) < 0.f) {
+            *edge = index;
+            return true;
         }
     }
     return false;
@@ -127,7 +124,7 @@ bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, Pi
     unsigned edgeId;
     foreach(stickfigures, s, Stickfigure) {
         Vector2 relativePointer = Vector2Subtract(point, s->position);
-        if(PivotPointCollisionRec(s, relativePointer, 0, &edgeId)) {
+        if(PivotPointCollisionStickfigure(s, relativePointer, &edgeId)) {
             *edge = (PivotEdgeIndex){
                 .figure = index,
                 .edge = edgeId
@@ -155,8 +152,8 @@ bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, P
     return false;
 }
 
-void PivotEdgesInsideRect(Stickfigure_array_t stickfigures, Rectangle rect, PivotEdgeIndex_array_t* edges) {
-    array_free_PivotEdgeIndex(edges);
+void PivotAppendEdgesInsideRect(Stickfigure_array_t stickfigures, Rectangle rect, PivotEdgeIndex_array_t* edges) {
+
     foreach(stickfigures, s, Stickfigure) {
         Rectangle rectRel = { rect.x - s->position.x, rect.y - s->position.y, rect.width, rect.height};
         unsigned s_index = index;

@@ -46,7 +46,7 @@ InterfaceData* InterfaceInit() {
     return data;
 }
 
-void HandleCreateStickfigure(RendererData* data) {
+void HandleCreateStickfigure(CanvasData* data) {
     Clay_ElementData canvas = Clay_GetElementData(Clay_GetElementId(CLAY_STRING("canvas")));
     printf("HandleCreateStickfigure (%f, %f, %f, %f)\n", canvas.boundingBox.x, canvas.boundingBox.y, canvas.boundingBox.width, canvas.boundingBox.height);
     Vector2 pivot = renderer_get_world_position(renderer_context, (Vector2){ canvas.boundingBox.width / 2.f, canvas.boundingBox.height / 2.f}, (Vector2) { canvas.boundingBox.width, canvas.boundingBox.height });
@@ -130,7 +130,7 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
     arena_reset(&data->arena);
     Clay_BeginLayout();
 
-    Clay_Sizing layoutExpand = { .width = CLAY_SIZING_GROW(0),
+    const Clay_Sizing layoutExpand = { .width = CLAY_SIZING_GROW(0),
                                  .height = CLAY_SIZING_GROW(0) };
 
     // Build UI here

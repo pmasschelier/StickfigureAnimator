@@ -64,7 +64,7 @@ bool PivotPointCollisionEdge(Stickfigure_array_t stickfigures, Vector2 point, Pi
 bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, PivotJointIndex* joint);
 void PivotMoveEdge(Stickfigure* s, unsigned int edge, double angle, double length);
 void PivotRemoveEdge(Stickfigure* s, unsigned int edge);
-void PivotEdgesInsideRect(Stickfigure_array_t stickfigures, Rectangle rect, PivotEdgeIndex_array_t* edges);
+void PivotAppendEdgesInsideRect(Stickfigure_array_t stickfigures, Rectangle rect, PivotEdgeIndex_array_t* edges);
 StickfigureEdge* PivotFindRootEdge(Stickfigure* s, unsigned int joint);
 
 #endif // !PIVOT_H

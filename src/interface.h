@@ -63,7 +63,7 @@ typedef struct {
     float zoom;
     float pivotRadius;
     ColorHSV* color;
-} RendererData;
+} CanvasData;
 
 
 typedef enum {
@@ -84,7 +84,7 @@ typedef struct {
     float yOffset;
     Arena arena;
     bool isMenuBarButtonOpen[MENUBAR_BUTTON_COUNT];
-    RendererData rendererData;
+    CanvasData rendererData;
     Texture2D icons[ICON_COUNT];
     ComponentContext context;
     ColorPickerState colorPicker;
