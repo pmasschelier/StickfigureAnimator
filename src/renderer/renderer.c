@@ -2,14 +2,12 @@
 #include "arena.h"
 #include "array.h"
 #include "raymath.h"
-#include "rlgl.h"
-#include "src/pivot.h"
+#include "src/pivot_impl.h"
 #include "src/raylib.h"
 
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
-#include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -107,11 +105,11 @@ void renderer_reset_selection(RendererContext* context) {
 
 RendererContext* renderer_init(Rectangle worldViewport) {
     constexpr size_t ARENA_SIZE = 4096;
-    Shader stickfigureShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/stick.frag");
+    const Shader stickfigureShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/stick.frag");
     if (stickfigureShader.id == 0)
         return nullptr;
-    Shader postprocessShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/postprocess.frag");
-    if (stickfigureShader.id == 0)
+    const Shader postprocessShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/postprocess.frag");
+    if (postprocessShader.id == 0)
         return nullptr;
 
     if(glewInit() != GLEW_OK) {
@@ -171,7 +169,7 @@ RendererContext* renderer_init(Rectangle worldViewport) {
 
     // During init, enable debug output
     glEnable              ( GL_DEBUG_OUTPUT );
-    glDebugMessageCallback( MessageCallback, 0 );
+    glDebugMessageCallback( MessageCallback, nullptr );
 
     return state;
 }
@@ -264,7 +262,7 @@ static void renderer_update_screen(RendererContext* state, Vector2 res) {
     SetShaderValue(state->stickfigure.shader, state->stickfigure.loc.texel, &texel, SHADER_UNIFORM_FLOAT);
 }
 
-void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, PivotEdgeIndex_array_t selected, Vector2 res, float pivotRadius) {
+void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, Vector2 res, float pivotRadius) {
     renderer_update_screen(state, res);
     GLuint *edgesSSBO = nullptr, *jointsSSBO = nullptr;
     if(stickfigures.length > 0) {
@@ -293,14 +291,9 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, P
                         (float)e->data.color.b / 255.f,
                         1.f
                     },
-                    .thickness = e->thickness,
-                    .selected = false
+                    .thickness = e->data.thickness,
+                    .selected = e->data.selected
                 };
-            }
-            foreach(selected, s, PivotEdgeIndex) {
-                if (s->figure == s_index) {
-                    edges[s->edge].selected = true;
-                }
             }
             glUnmapNamedBuffer(edgesSSBO[index]);
         }
@@ -318,12 +311,12 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, P
         glUseProgram(state->stickfigure.shader.id);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, edgesSSBO[i]);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, jointsSSBO[i]);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
     }
     glUseProgram(state->postprocess.shader.id);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
     glUseProgram(0);
     glBindVertexArray(0);
     EndTextureMode();

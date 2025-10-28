@@ -15,7 +15,7 @@ typedef struct {
     ColorHSV color;
 } ColorPickerState;
 
-typedef void (*OnChangeColorFn)(ColorHSV, void*);
+typedef void (*OnChangeColorFn)(void*, ColorHSV);
 
 typedef struct {
     OnChangeColorFn fn;

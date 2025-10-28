@@ -38,12 +38,13 @@ typedef struct {
     } status;
     union {
         struct {
-            PivotEdgeIndex edge;
-            PolarCoords initial;
+            StickfigureEdge* edge;
+            Stickfigure* figure;
             PolarCoords pointerOffset;
+            PolarCoords initial;
         } edge;
         struct {
-            unsigned int figure;
+            Stickfigure* figure;
             Vector2 initialStickfigure;
             Vector2 initialPointer;
         } figure;
@@ -55,7 +56,7 @@ typedef struct {
 
 typedef struct {
     Stickfigure_array_t stickfigure;
-    PivotEdgeIndex_array_t selectedEdges;
+    double thickness;
     HandData hand;
     EditMode mode;
     StickfigurePartType stickType;

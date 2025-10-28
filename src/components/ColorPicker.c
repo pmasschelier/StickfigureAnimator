@@ -23,7 +23,7 @@ static void HandleHoverHPicker(
     case CLAY_POINTER_DATA_PRESSED:
         offset = pointerInfo.position.x - bb.x;
         data->color->hue = offset / bb.width * 360.f;
-        data->onChangeColor.fn(*data->color, data->onChangeColor.data);
+        data->onChangeColor.fn(data->onChangeColor.data, *data->color);
         break;
     default:
         break;
@@ -47,7 +47,7 @@ static void HandleHoverSVPicker(
         data->color->saturation = offset.x / bb.width;
         data->color->value = 1.f - (offset.y / bb.height);
         printf("saturation: %f, value %f\n", data->color->saturation, data->color->value);
-        data->onChangeColor.fn(*data->color, data->onChangeColor.data);
+        data->onChangeColor.fn(data->onChangeColor.data, *data->color);
         break;
     default:
         break;

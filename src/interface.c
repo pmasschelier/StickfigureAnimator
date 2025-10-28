@@ -21,7 +21,7 @@ InterfaceData* InterfaceInit() {
     *data = (InterfaceData){
         .arena = arena_create(COMPONENT_ARENA_SIZE),
         .rendererData = {
-            .selectedEdges = EMPTY_ARRAY,
+            .thickness = 1.f,
             .pivotRadius = 6.f,
             .color = &data->colorPicker.color,
         },
@@ -53,7 +53,9 @@ void HandleCreateStickfigure(CanvasData* data) {
     PivotEdgeData edgeData = {
         .angle = PI / 2,
         .length = 10.f,
-        .color = ColorFromHSV(data->color->hue, data->color->saturation, data->color->value)
+        .color = ColorFromHSV(data->color->hue, data->color->saturation, data->color->value),
+        .selected = false,
+        .thickness = data->thickness
     };
     PivotCreateStickfigure(&data->stickfigure, nullptr, data->stickType, (Vector2) { pivot.x, pivot.y - 5.f }, edgeData);
 }
@@ -115,15 +117,12 @@ void HandleSelectStickfigure(unsigned requested, unsigned* type) {
 }
 
 typedef struct {
-    PivotEdgeIndex_array_t* selected;
     Stickfigure_array_t* stickfigures;
 } HandleChangeColorData;
 void HandleChangeColor(ColorHSV color, HandleChangeColorData* data) {
     printf("Change color (%f, %f, %f)\n", color.hue, color.saturation, color.value);
-    foreach(*data->selected, i, PivotEdgeIndex) {
-        StickfigureEdge* edge = &data->stickfigures->data[i->figure].edges.data[i->edge];
-        edge->data.color = ColorFromHSV(color.hue, color.saturation, color.value);
-    }
+    const Color rgb = ColorFromHSV(color.hue, color.saturation, color.value);
+    PivotSetColorSelection(data->stickfigures, rgb);
 }
 
 Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
@@ -221,9 +220,10 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                 }
             }) {
                 for (unsigned i = 0; i < data->rendererData.stickfigure.length; i++) {
-                    Stickfigure* s = &data->rendererData.stickfigure.data[i];
+                    Stickfigure* s = get_figure(data->rendererData.stickfigure, i);
                     Callback_t* cb = CallbackCreateGroup(&data->arena, (CallbackIndexFn)HandleSelectStickfigure, data->rendererData.stickfigure.length, &data->selectedStickfigure);
-                    Clay_String name = { strlen(s->name), s->name };
+                    const char* name = PivotStickfigureName(s);
+                    const Clay_String label = { strlen(name), name };
                     const bool selected = (int)i == data->selectedStickfigure;
 
                     CLAY({
@@ -239,7 +239,7 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                         if(!selected)
                             SetButtonCallbacks(&data->arena, (ButtonData) { .onMouseUp = CALLBACK_INDEX(cb, i)} );
                         CLAY_TEXT(
-                            name,
+                            label,
                             CLAY_TEXT_CONFIG({
                                     .fontId = FONT_ID_BODY_32,
                                     .fontSize = 20,
@@ -268,7 +268,6 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
             }) {
                 HandleChangeColorData* handleChangeColorData = arena_allocate(&data->arena, 1, sizeof(HandleChangeColorData));
                 handleChangeColorData->stickfigures = &data->rendererData.stickfigure;
-                handleChangeColorData->selected = &data->rendererData.selectedEdges;
                 RenderColorPicker(
                     CLAY_STRING("ColorPicker"),
                     &data->colorPicker,
