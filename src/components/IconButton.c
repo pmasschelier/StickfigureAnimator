@@ -27,7 +27,7 @@ void RenderIconButtonGroup(Clay_ElementId id, Texture2D* icons, Callback_t* onSe
              }) {
                 Callback_t* cb = CALLBACK_INDEX(onSelected, i);
                 if(onSelected)
-                    SetButtonCallbacks(context->arena, (ButtonData) { .onMouseUp = cb });
+                    SetButtonCallbacks(&context->allocator, (ButtonData) { .onMouseUp = cb });
                 CLAY({
                     .layout = {
                         .sizing = { CLAY_SIZING_FIXED(size), CLAY_SIZING_FIXED(size) },
@@ -56,7 +56,7 @@ void RenderIconButton(Clay_ElementId id, Texture2D* icon, Callback_t* onMouseUp,
          .cornerRadius = CLAY_CORNER_RADIUS(3.f)
     }) {
         if(onMouseUp)
-            SetButtonCallbacks(context->arena, (ButtonData) { .onMouseUp = onMouseUp });
+            SetButtonCallbacks(&context->allocator, (ButtonData) { .onMouseUp = onMouseUp });
         CLAY({
             .layout = {
                 .sizing = { CLAY_SIZING_FIXED(size), CLAY_SIZING_FIXED(size) },

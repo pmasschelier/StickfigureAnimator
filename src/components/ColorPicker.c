@@ -64,7 +64,7 @@ void RenderColorPicker(Clay_String id, ColorPickerState* state, OnChangeColor on
 
     const Clay_ElementId h_pickerId = Clay_GetElementIdWithIndex(id, 2);
 
-    ColorPickerHandlerData* data = arena_allocate(context->arena, 1, sizeof(ColorPickerHandlerData));
+    ColorPickerHandlerData* data = allocator_alloc(&context->allocator, sizeof(ColorPickerHandlerData));
     data->color = &state->color;
     data->onChangeColor = onChangeColor;
 

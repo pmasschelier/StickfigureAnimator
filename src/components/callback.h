@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
-#include "arena.h"
+#include <cutils/arena.h>
 #include "clay/clay.h"
 
 typedef void (*CallbackFn)(void*);
@@ -25,11 +25,11 @@ typedef struct {
 #define CallbackCreateGroupCopyParams(arena, fn, count, params, paramsSize) CallbackChainGroupCopyParams(arena, nullptr, fn, count, params, paramsSize)
 
 void CallbackRunAll(Callback_t* cb);
-Callback_t* CallbackChainGroup(Arena* arena, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params);
-Callback_t* CallbackChainGroupCopyParams(Arena* arena, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params, size_t paramsSize);
-Callback_t* CallbackChain(Arena* arena, Callback_t* cb, CallbackFn fn, void* params);
-Callback_t* CallbackChainCopyParams(Arena* arena, Callback_t* cb, CallbackFn fn, void* params, size_t paramsSize);
-void SetButtonCallbacks(Arena* arena, ButtonData data);
+Callback_t* CallbackChainGroup(allocator_t* a, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params);
+Callback_t* CallbackChainGroupCopyParams(allocator_t* a, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params, size_t paramsSize);
+Callback_t* CallbackChain(allocator_t* a, Callback_t* cb, CallbackFn fn, void* params);
+Callback_t* CallbackChainCopyParams(allocator_t* a, Callback_t* cb, CallbackFn fn, void* params, size_t paramsSize);
+void SetButtonCallbacks(allocator_t* a, ButtonData data);
 
 
 #endif // !CALLBACK_H

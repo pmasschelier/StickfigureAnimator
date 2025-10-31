@@ -30,7 +30,7 @@ void RenderDropdownMenuItem(
                 background = (Clay_Color){ 0xFF, 0xFF, 0xFF, 0x33 };
                 context->pointer = POINTER_CLICKABLE;
             }
-            SetButtonCallbacks(context->arena, (ButtonData){ .onMouseUp = onClick });
+            SetButtonCallbacks(&context->allocator, (ButtonData){ .onMouseUp = onClick });
         }
         CLAY( {
             .layout = {

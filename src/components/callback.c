@@ -39,8 +39,8 @@ void CallbackRunAll(Callback_t* cb) {
     CallbackRunAll(cb->then);
 }
 
-Callback_t* CallbackChainGroup(Arena* arena, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params) {
-    Callback_t* ret = arena_allocate(arena, count, sizeof(Callback_t));
+Callback_t* CallbackChainGroup(allocator_t* a, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params) {
+    Callback_t* ret = allocator_alloc(a, count * sizeof(Callback_t));
     if(ret != nullptr)
         for (unsigned i = 0; i < count; i++) {
             ret[i].type = CALLBACK_INDEXED;
@@ -52,15 +52,15 @@ Callback_t* CallbackChainGroup(Arena* arena, Callback_t* cb, CallbackIndexFn fn,
     return ret;
 }
 
-Callback_t* CallbackChainGroupCopyParams(Arena* arena, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params, size_t paramsSize) {
-    void* paramsCopy = arena_allocate(arena, 1, paramsSize);
+Callback_t* CallbackChainGroupCopyParams(allocator_t* a, Callback_t* cb, CallbackIndexFn fn, unsigned count, void* params, size_t paramsSize) {
+    void* paramsCopy = allocator_alloc(a, paramsSize);
     memcpy(paramsCopy, params, paramsSize);
-    return CallbackChainGroup(arena, cb, fn, count, paramsCopy);
+    return CallbackChainGroup(a, cb, fn, count, paramsCopy);
 }
 
 
-Callback_t* CallbackChain(Arena* arena, Callback_t* cb, CallbackFn fn, void* params) {
-    Callback_t* ret = arena_allocate(arena, 1, sizeof(Callback_t));
+Callback_t* CallbackChain(allocator_t* a, Callback_t* cb, CallbackFn fn, void* params) {
+    Callback_t* ret = allocator_alloc(a, sizeof(Callback_t));
     ret->type = CALLBACK_SINGLE;
     ret->simple.fn = fn;
     ret->params = params;
@@ -68,10 +68,10 @@ Callback_t* CallbackChain(Arena* arena, Callback_t* cb, CallbackFn fn, void* par
     return ret;
 }
 
-Callback_t* CallbackChainCopyParams(Arena* arena, Callback_t* cb, CallbackFn fn, void* params, size_t paramsSize) {
-    void* paramsCopy = arena_allocate(arena, 1, paramsSize);
+Callback_t* CallbackChainCopyParams(allocator_t* a, Callback_t* cb, CallbackFn fn, void* params, size_t paramsSize) {
+    void* paramsCopy = allocator_alloc(a, paramsSize);
     memcpy(paramsCopy, params, paramsSize);
-    return CallbackChain(arena, cb, fn, paramsCopy);
+    return CallbackChain(a, cb, fn, paramsCopy);
 }
 
 static void HandleHoverFunction(
@@ -92,8 +92,8 @@ static void HandleHoverFunction(
     }
 }
 
-void SetButtonCallbacks(Arena* arena, ButtonData data) {
-    ButtonData* button_data = arena_allocate(arena, 1, sizeof(ButtonData));
+void SetButtonCallbacks(allocator_t* a, ButtonData data) {
+    ButtonData* button_data = allocator_alloc(a, sizeof(ButtonData));
     if(!button_data)
         exit(-3);
     memcpy(button_data, &data, sizeof(ButtonData));

@@ -9,5 +9,6 @@ sources = files(
   'components/Canvas.c',
   'components/callback.c',
   'renderer/renderer.c',
-  'pivot.c'
+  'pivot.c',
+  'commands.c'
 )

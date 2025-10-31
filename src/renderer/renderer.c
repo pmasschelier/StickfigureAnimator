@@ -1,6 +1,6 @@
 #include "renderer.h"
-#include "arena.h"
-#include "array.h"
+#include <cutils/arena.h>
+#include <cutils/array.h>
 #include "raymath.h"
 #include "src/pivot_impl.h"
 #include "src/raylib.h"
@@ -19,7 +19,7 @@ typedef struct {
 } Selection;
 
 struct RendererContext {
-    Arena arena;
+    arena_allocator_t arena;
     RenderTexture2D rendertexture;
     Rectangle worldViewport;
     struct {
@@ -104,7 +104,6 @@ void renderer_reset_selection(RendererContext* context) {
 }
 
 RendererContext* renderer_init(Rectangle worldViewport) {
-    constexpr size_t ARENA_SIZE = 4096;
     const Shader stickfigureShader = LoadShader(RESOURCE_PATH "resources/shaders/stick.vert", RESOURCE_PATH "resources/shaders/stick.frag");
     if (stickfigureShader.id == 0)
         return nullptr;
@@ -143,7 +142,7 @@ RendererContext* renderer_init(Rectangle worldViewport) {
     
     RendererContext* state = calloc(1, sizeof(RendererContext));
     *state = (RendererContext) {
-        .arena = arena_create(ARENA_SIZE),
+        .arena = ARENA_INIT,
         .worldViewport = worldViewport,
         .stickfigure = {
             .shader = stickfigureShader,
@@ -271,7 +270,6 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
         edgesSSBO = malloc(stickfigures.length * sizeof(GLuint));
         glCreateBuffers(stickfigures.length, edgesSSBO);
         foreach(stickfigures, s, Stickfigure) {
-            unsigned s_index = index;
             glNamedBufferStorage(jointsSSBO[index], s->joints.length * sizeof(Vector2), nullptr, GL_MAP_WRITE_BIT);
             Vector2* joints = glMapNamedBuffer(jointsSSBO[index], GL_WRITE_ONLY);
             foreach(s->joints, j, StickfigureJoint) {
@@ -284,14 +282,14 @@ void renderer_render(RendererContext *state, Stickfigure_array_t stickfigures, V
                 edges[index] = (SSBOStick) {
                     .start = e->from,
                     .end = e->to,
-                    .type = e->type,
+                    .type = e->data.type,
                     .color = (Vector4) {
                         (float)e->data.color.r / 255.f,
                         (float)e->data.color.g / 255.f,
                         (float)e->data.color.b / 255.f,
                         1.f
                     },
-                    .thickness = e->data.thickness,
+                    .thickness = (GLfloat)e->data.thickness,
                     .selected = e->data.selected
                 };
             }

@@ -1,12 +1,15 @@
 #include "pivot.h"
-#include "array.h"
+#include "cutils/when_macros.h"
+#include "pivot_impl.h"
 #include "raylib.h"
 #include "raymath.h"
 #include <assert.h>
+#include <cutils/array.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include "pivot_impl.h"
+
+#include <alloca.h>
 
 const size_t SizeofStickfigure = sizeof(Stickfigure);
 
@@ -28,34 +31,112 @@ static void PivotUpdateJointsRec(Stickfigure* s, StickfigureEdge* edge, double a
     }
 }
 
-Stickfigure* PivotCreateStickfigure(Stickfigure_array_t* array, const char* name, StickfigurePartType type, Vector2 pivot, PivotEdgeData data) {
-    unsigned index = array->length;
-    Stickfigure* sf = array_append_Stickfigure(array);
-    if(!name)
-        snprintf(sf->name, STICKFIGURE_NAME_LENGTH, "Stickfigure #%d", index);
-    else
-        strncpy(sf->name, name, STICKFIGURE_NAME_LENGTH);
-    sf->joints = (StickfigureJoint_array_t){};
-    sf->edges = (StickfigureEdge_array_t){};
-    sf->position = pivot;
-    StickfigureEdge* edge = array_append_StickfigureEdge(&sf->edges);
+bool PivotCreateFigure(Stickfigure* figure, const char* name, Vector2 pivot, PivotEdgeData data) {
+    if(name)
+        strncpy(figure->name, name, STICKFIGURE_NAME_LENGTH);
+    figure->joints = (StickfigureJoint_array_t){};
+    figure->edges = (StickfigureEdge_array_t){};
+    figure->position = pivot;
+    StickfigureEdge* edge = array_append_StickfigureEdge(&figure->edges, 1);
     *edge = (StickfigureEdge) {
         .from = 0,
         .to = 1,
-        .type = type,
         .data = data,
     };
-    StickfigureJoint* ppivot = array_append_StickfigureJoint(&sf->joints);
-    *ppivot = (StickfigureJoint) {
+    StickfigureJoint* joints = array_append_StickfigureJoint(&figure->joints, 2);
+    joints[0] = (StickfigureJoint) {
         .pos = Vector2Zero(),
         .rootAngle = 0.f
     };
-    StickfigureJoint* phandle = array_append_StickfigureJoint(&sf->joints);
-    *phandle = (StickfigureJoint) {
+    joints[1] = (StickfigureJoint) {
         .pos = PivotComputePosition(Vector2Zero(), data.angle, data.length),
         .rootAngle = data.angle
     };
-    return sf;
+    return figure;
+}
+
+void PivotClearFigure(Stickfigure* figure) {
+    array_free_StickfigureJoint(&figure->joints);
+    array_free_StickfigureEdge(&figure->edges);
+}
+
+size_t PivotGetSerializedSize(const Stickfigure* figure) {
+    size_t size = 0;
+    size += sizeof(figure->name);
+    size += sizeof(figure->position);
+    size += sizeof(figure->joints.length);
+    size += sizeof(StickfigureJoint) * figure->joints.length;
+    size += sizeof(figure->edges.length);
+    size += sizeof(StickfigureEdge) * figure->edges.length;
+    return size;
+}
+
+void PivotSerialize(const Stickfigure* figure, char* buffer) {
+    memcpy(buffer, &figure->name, sizeof(figure->name));
+    buffer += sizeof(figure->name);
+    *(Vector2*)buffer = figure->position;
+    buffer += sizeof(figure->position);
+    *(unsigned*)buffer = figure->joints.length;
+    buffer += sizeof(figure->joints.length);
+    const size_t jointBufferSize = figure->joints.length * sizeof(StickfigureJoint);
+    memcpy(buffer, figure->joints.data, jointBufferSize);
+    buffer += jointBufferSize;
+    *(unsigned*)buffer = figure->edges.length;
+    buffer += sizeof(figure->edges.length);
+    const size_t edgeBufferSize = figure->edges.length * sizeof(StickfigureEdge);
+    memcpy(buffer, figure->edges.data, edgeBufferSize);
+}
+
+bool PivotDeserialize(const char* buffer, Stickfigure* figure) {
+    bool ret = true;
+    printf("buffer: %p\n", buffer);
+    // Read the figure name from buffer
+    memcpy(&figure->name, buffer, sizeof(figure->name));
+    buffer += sizeof(figure->name);
+    printf("buffer: %p\n", buffer);
+    // Read the figure position from buffer
+    figure->position = *(Vector2*)buffer;
+    buffer += sizeof(figure->position);
+    printf("buffer: %p\n", buffer);
+    // Read the joints from buffer
+    const unsigned jointCount = *(unsigned*)buffer;
+    const unsigned jointSize = jointCount * sizeof(StickfigureJoint);
+    buffer += sizeof(figure->joints.length);
+    printf("buffer: %p\n", buffer);
+    figure->joints = (StickfigureJoint_array_t){};
+    StickfigureJoint* joints = array_append_StickfigureJoint(&figure->joints, jointCount);
+    when_null_jmp(joints, false, error1);
+    memcpy(joints, buffer, jointSize);
+    buffer += jointSize;
+    printf("buffer: %p\n", buffer);
+    // Read the edges from buffer
+    const unsigned edgeCount = *(unsigned*)buffer;
+    const unsigned edgeSize = jointCount * sizeof(StickfigureEdge);
+    buffer += sizeof(figure->edges.length);
+    printf("buffer: %p\n", buffer);
+    figure->edges = (StickfigureEdge_array_t){};
+    StickfigureEdge* edges = array_append_StickfigureEdge(&figure->edges, edgeCount);
+    when_null_jmp(edges, false, error2);
+    memcpy(edges, buffer, edgeSize);
+    printf("buffer: %p\n", buffer);
+    return ret;
+    error2:
+    array_free_StickfigureJoint(&figure->joints);
+    error1:
+    return ret;
+}
+
+void PivotCloneStickfigure(const Stickfigure* figure, Stickfigure* clone) {
+    strncpy(clone->name, figure->name, STICKFIGURE_NAME_LENGTH);
+    clone->position = figure->position;
+    clone->edges = array_shallow_clone_StickfigureEdge(&figure->edges);
+    clone->joints = array_shallow_clone_StickfigureJoint(&figure->joints);
+}
+
+Stickfigure* PivotInsertFigure(Stickfigure_array_t* array, const Stickfigure* figure, unsigned zindex) {
+    Stickfigure* ret = array_insert_Stickfigure(array, nullptr, zindex);
+    PivotCloneStickfigure(figure, ret);
+    return ret;
 }
 
 StickfigureEdge* PivotFindRootEdge(Stickfigure* s, unsigned joint) {
@@ -66,19 +147,58 @@ StickfigureEdge* PivotFindRootEdge(Stickfigure* s, unsigned joint) {
     return nullptr;
 }
 
-StickfigureEdge* PivotAddStick(Stickfigure* s, StickfigurePartType type, unsigned pivot, PivotEdgeData data) {
-    const unsigned joint = s->joints.length;
-    array_append_StickfigureJoint(&s->joints);
-    StickfigureEdge* edge = array_append_StickfigureEdge(&s->edges);
+StickfigureEdge* PivotAddStick(Stickfigure* s, unsigned pivot, PivotEdgeData data) {
+    const unsigned handleId = s->joints.length;
+    StickfigureJoint* joint = array_append_StickfigureJoint(&s->joints, 1);
+    StickfigureEdge* edge = array_append_StickfigureEdge(&s->edges, 1);
+    if (joint == nullptr || edge == nullptr)
+        return nullptr;
     *edge = (StickfigureEdge) {
         .from = pivot,
-        .to = joint,
-        .type = type,
+        .to = handleId,
         .data = data,
     };
     double rootAngle = s->joints.data[pivot].rootAngle;
     PivotUpdateJointsRec(s, edge, rootAngle);
     return edge;
+}
+
+void PivotMarkRec(Stickfigure* s, unsigned joint, bool *markedJoints, bool* markedEdges) {
+    foreach(s->edges, e, StickfigureEdge) {
+        if(e->from == joint) {
+            if (markedEdges)
+                markedEdges[index] = true;
+            if (markedJoints)
+                markedJoints[e->to] = true;
+            PivotMarkRec(s, e->to, markedJoints, markedEdges);
+        }
+    }
+}
+
+void PivotRemoveStick(Stickfigure* s, StickfigureEdge* edge) {
+    // Marks the edges and joints from edge for removal
+    bool* markedJoints = alloca(s->joints.length * sizeof(bool));
+    memset(markedJoints, 0, s->joints.length * sizeof(bool));
+    markedJoints[edge->to] = true;
+    bool* markedEdges = alloca(s->edges.length * sizeof(bool));
+    memset(markedEdges, 0, s->edges.length * sizeof(bool));
+    markedEdges[array_indexof(s->edges, edge)] = true;
+    PivotMarkRec(s, edge->to, markedJoints, markedEdges);
+    // Remove marked joints and edges
+    array_filter_StickfigureJoint(&s->joints, markedJoints);
+    array_filter_StickfigureEdge(&s->edges, markedEdges);
+    // Compute new joint ids after removal
+    long* jointIds = alloca(s->joints.length * sizeof(long));
+    unsigned id = 0;
+    for (unsigned i = 0; i < s->joints.length; i++)
+        jointIds[i] = markedJoints[i] ? -1 : id++;
+    // Update joint ids of edges
+    foreach(s->edges, e, StickfigureEdge) {
+        assert(jointIds[e->from] >= 0);
+        e->from = jointIds[e->from];
+        assert(jointIds[e->to] >= 0);
+        e->to = jointIds[e->to];
+    }
 }
 
 StickfigureEdge* PivotFindEdge(Stickfigure* s, PivotEdgeIndex edge) {
@@ -132,7 +252,7 @@ static bool PivotPointCollisionStickfigure(const Stickfigure* s, const Vector2 p
         double d1;
         const Vector2 from = s->joints.data[e->from].pos;
         const Vector2 to = s->joints.data[e->to].pos;
-        if(e->type == STICKFIGURE_STICK) {
+        if(e->data.type == STICKFIGURE_STICK) {
             d1 = sdSegment(point, from, to);
         } else {
             d1 = sdRing(point, from, to);
@@ -175,11 +295,10 @@ bool PivotPointCollisionJoint(Stickfigure_array_t stickfigures, Vector2 point, S
 void PivotAppendEdgesInsideRect(Stickfigure_array_t stickfigures, Rectangle rect, bool unselectOthers) {
     foreach(stickfigures, s, Stickfigure) {
         Rectangle rectRel = { rect.x - s->position.x, rect.y - s->position.y, rect.width, rect.height};
-        unsigned s_index = index;
         foreach(s->edges, e, StickfigureEdge) {
-            Vector2 from = s->joints.data[e->from].pos;
-            Vector2 to = s->joints.data[e->to].pos;
-            bool isInside = CheckCollisionPointRec(from, rectRel) && CheckCollisionPointRec(to, rectRel);
+            const Vector2 from = s->joints.data[e->from].pos;
+            const Vector2 to = s->joints.data[e->to].pos;
+            const bool isInside = CheckCollisionPointRec(from, rectRel) && CheckCollisionPointRec(to, rectRel);
             e->data.selected = isInside || (e->data.selected && !unselectOthers);
         }
     }

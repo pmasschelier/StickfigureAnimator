@@ -1,7 +1,7 @@
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
-#include "arena.h"
+#include <cutils/arena.h>
 #include "clay/clay.h"
 #include "components/components.h"
 #include "components/utils.h"
@@ -83,7 +83,7 @@ constexpr char ICON_FILENAMES[ICON_COUNT][128] = {
 typedef struct {
     int selectedStickfigure;
     float yOffset;
-    Arena arena;
+    arena_allocator_t arena;
     bool isMenuBarButtonOpen[MENUBAR_BUTTON_COUNT];
     CanvasData rendererData;
     Texture2D icons[ICON_COUNT];

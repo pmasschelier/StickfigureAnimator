@@ -66,7 +66,7 @@ void RenderMenuBarButton(
                     .backgroundColor = {40, 40, 40, 255 },
                     .cornerRadius = {0.f, 8.f, 8.f, 8.f},
                 }) {
-                    RenderMenu(priv, CallbackCreate(context->arena, (CallbackFn)CloseMenu, menuVisible));
+                    RenderMenu(priv, CallbackCreate(&context->allocator, (CallbackFn)CloseMenu, menuVisible));
                 }
             }
         }

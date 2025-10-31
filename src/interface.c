@@ -1,12 +1,14 @@
 #include "interface.h"
-#include "arena.h"
+#include <cutils/arena.h>
 #include "components/callback.h"
 #include "components/components.h"
 #include "components/utils.h"
 #include "pivot.h"
 #include "raylib.h"
 #include "renderer/renderer.h"
-#include <assert.h>
+
+#include <alloca.h>
+#include <commands.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,10 +18,9 @@
 extern RendererContext* renderer_context;
 
 InterfaceData* InterfaceInit() {
-    const size_t COMPONENT_ARENA_SIZE = 4096;
     InterfaceData* data = malloc(sizeof(InterfaceData));
     *data = (InterfaceData){
-        .arena = arena_create(COMPONENT_ARENA_SIZE),
+        .arena = ARENA_INIT,
         .rendererData = {
             .thickness = 1.f,
             .pivotRadius = 6.f,
@@ -29,7 +30,7 @@ InterfaceData* InterfaceInit() {
             .color = {0.f, 0.f, 0.f}
         },
         .context = {
-            .arena = &data->arena,
+            .allocator = arena_get_allocator(&data->arena),
             .pointer = POINTER_DEFAULT,
             .theme = {
                 .color = { PRIMARY_COLOR, (Clay_Color){}, SECONDARY_COLOR, (Clay_Color){} },
@@ -51,13 +52,18 @@ void HandleCreateStickfigure(CanvasData* data) {
     printf("HandleCreateStickfigure (%f, %f, %f, %f)\n", canvas.boundingBox.x, canvas.boundingBox.y, canvas.boundingBox.width, canvas.boundingBox.height);
     Vector2 pivot = renderer_get_world_position(renderer_context, (Vector2){ canvas.boundingBox.width / 2.f, canvas.boundingBox.height / 2.f}, (Vector2) { canvas.boundingBox.width, canvas.boundingBox.height });
     PivotEdgeData edgeData = {
+        .type = data->stickType,
+        .selected = false,
         .angle = PI / 2,
         .length = 10.f,
         .color = ColorFromHSV(data->color->hue, data->color->saturation, data->color->value),
-        .selected = false,
         .thickness = data->thickness
     };
-    PivotCreateStickfigure(&data->stickfigure, nullptr, data->stickType, (Vector2) { pivot.x, pivot.y - 5.f }, edgeData);
+    Stickfigure* figure = alloca(SizeofStickfigure);
+    if (PivotCreateFigure(figure, nullptr, (Vector2) { pivot.x, pivot.y - 5.f }, edgeData)) {
+        CommandPush(&data->stickfigure, CommandCreateFigure(figure, PivotTopZIndex(data->stickfigure)));
+        PivotClearFigure(figure);
+    }
 }
 
 typedef struct {
@@ -86,7 +92,8 @@ void RenderFileMenu(void *priv, Callback_t* onMouseUp) {
 void RenderCreateMenu(void *priv, Callback_t* onMouseUp) {
     InterfaceData *data = priv;
     HandleChangeModeData *modes =
-        arena_allocate(&data->arena, 2, sizeof(HandleChangeModeData));
+        arena_allocate_array(&data->arena, 2, sizeof(HandleChangeModeData));
+    auto allocator = arena_get_allocator(&data->arena);
     for (int i = 0; i < 2; i++) {
         modes[i].stickType = &data->rendererData.stickType;
     }
@@ -94,14 +101,14 @@ void RenderCreateMenu(void *priv, Callback_t* onMouseUp) {
     RenderDropdownMenuItem(
         CLAY_STRING("Stick"),
         (ItemData){ 2, 0 },
-        CallbackChain(&data->arena, onMouseUp, HandleChangeMode, &modes[0]),
+        CallbackChain(&allocator, onMouseUp, HandleChangeMode, &modes[0]),
         &data->context
     );
     modes[1].stickTypeRequested = STICKFIGURE_RING;
     RenderDropdownMenuItem(
         CLAY_STRING("Circle"),
         (ItemData){ 2, 1 },
-        CallbackChain(&data->arena, onMouseUp, HandleChangeMode, &modes[1]),
+        CallbackChain(&allocator, onMouseUp, HandleChangeMode, &modes[1]),
         &data->context
     );
 }
@@ -119,7 +126,7 @@ void HandleSelectStickfigure(unsigned requested, unsigned* type) {
 typedef struct {
     Stickfigure_array_t* stickfigures;
 } HandleChangeColorData;
-void HandleChangeColor(ColorHSV color, HandleChangeColorData* data) {
+void HandleChangeColor(HandleChangeColorData* data, ColorHSV color) {
     printf("Change color (%f, %f, %f)\n", color.hue, color.saturation, color.value);
     const Color rgb = ColorFromHSV(color.hue, color.saturation, color.value);
     PivotSetColorSelection(data->stickfigures, rgb);
@@ -131,6 +138,8 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
 
     const Clay_Sizing layoutExpand = { .width = CLAY_SIZING_GROW(0),
                                  .height = CLAY_SIZING_GROW(0) };
+
+    allocator_t allocator = arena_get_allocator(&data->arena);
 
     // Build UI here
     CLAY({
@@ -189,13 +198,13 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                 RenderIconButton(
                     CLAY_ID("CreateStickfigureIcon"),
                     &data->icons[ICON_CREATE_STICKFIGURE],
-                    CallbackCreate(&data->arena, (CallbackFn)HandleCreateStickfigure, &data->rendererData),
+                    CallbackCreate(&allocator, (CallbackFn)HandleCreateStickfigure, &data->rendererData),
                     &data->context
                 );
                 RenderIconButtonGroup(
                     CLAY_ID("ShapeIconGroup"),
                     &data->icons[ICON_STICK],
-                    CallbackCreateGroup(&data->arena, (CallbackIndexFn)HandleChangeStickType, 2, &data->rendererData.stickType),
+                    CallbackCreateGroup(&allocator, (CallbackIndexFn)HandleChangeStickType, 2, &data->rendererData.stickType),
                     2,
                     data->rendererData.stickType,
                     &data->context);
@@ -221,9 +230,9 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
             }) {
                 for (unsigned i = 0; i < data->rendererData.stickfigure.length; i++) {
                     Stickfigure* s = get_figure(data->rendererData.stickfigure, i);
-                    Callback_t* cb = CallbackCreateGroup(&data->arena, (CallbackIndexFn)HandleSelectStickfigure, data->rendererData.stickfigure.length, &data->selectedStickfigure);
+                    Callback_t* cb = CallbackCreateGroup(&allocator, (CallbackIndexFn)HandleSelectStickfigure, data->rendererData.stickfigure.length, &data->selectedStickfigure);
                     const char* name = PivotStickfigureName(s);
-                    const Clay_String label = { strlen(name), name };
+                    const Clay_String label = { (int32_t)strlen(name), name };
                     const bool selected = (int)i == data->selectedStickfigure;
 
                     CLAY({
@@ -237,7 +246,7 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                         .cornerRadius = CLAY_CORNER_RADIUS(8) }
                     ) {
                         if(!selected)
-                            SetButtonCallbacks(&data->arena, (ButtonData) { .onMouseUp = CALLBACK_INDEX(cb, i)} );
+                            SetButtonCallbacks(&allocator, (ButtonData) { .onMouseUp = CALLBACK_INDEX(cb, i)} );
                         CLAY_TEXT(
                             label,
                             CLAY_TEXT_CONFIG({
@@ -266,7 +275,7 @@ Clay_RenderCommandArray InterfaceLayout(InterfaceData *data) {
                     .sizing = { CLAY_SIZING_FIT(250), CLAY_SIZING_GROW(0) }
                 }
             }) {
-                HandleChangeColorData* handleChangeColorData = arena_allocate(&data->arena, 1, sizeof(HandleChangeColorData));
+                HandleChangeColorData* handleChangeColorData = arena_allocate(&data->arena, sizeof(HandleChangeColorData));
                 handleChangeColorData->stickfigures = &data->rendererData.stickfigure;
                 RenderColorPicker(
                     CLAY_STRING("ColorPicker"),

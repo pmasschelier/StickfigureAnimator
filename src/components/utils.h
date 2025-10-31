@@ -1,7 +1,7 @@
 #ifndef COMPONENTS_UTILS_H
 #define COMPONENTS_UTILS_H
 
-#include "arena.h"
+#include <cutils/arena.h>
 #include "callback.h"
 #include "clay/clay.h"
 #include <assert.h>
@@ -32,7 +32,7 @@ typedef enum {
 } PointerMode;
 
 typedef struct {
-    Arena* arena;
+    allocator_t allocator;
     ComponentTheme theme;
     PointerMode pointer;
     bool arenaOverflowed;

@@ -12,7 +12,9 @@
 #include "clay/clay.h"
 #include "clay/renderers/raylib/clay_renderer_raylib.c"
 
-InterfaceData* data;
+#include <commands.h>
+
+InterfaceData * data;
 RendererContext *renderer_context;
 GLFWwindow *window;
 
@@ -142,12 +144,13 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
             }
             else if(hoverJoint) {
                 const PivotEdgeData edgeData = {
+                    .type = canvas->stickType,
                     .angle = PivotAngleFrom(jointFigure, joint, worldPos),
                     .length = PivotDistanceFrom(jointFigure, joint, worldPos),
                     .color = ColorFromHSV(canvas->color->hue, canvas->color->saturation, canvas->color->value),
                     .thickness = canvas->thickness
                 };
-                StickfigureEdge *part = PivotAddStick(jointFigure, canvas->stickType, joint, edgeData);
+                StickfigureEdge *part = PivotAddStick(jointFigure, joint, edgeData);
                 HandTakeStick(canvas, jointFigure, part, worldPos);
                 canvas->mode = CREATE_STICK;
             }
@@ -165,7 +168,6 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
         break;
     }
     switch (canvas->hand.status) {
-        Stickfigure* s;
         case HAND_HOLDING_STICK:
             const unsigned pivot = PivotGetPivotIndex(canvas->hand.edge.edge);
             const double angle = PivotAngleFrom(canvas->hand.edge.figure, pivot, worldPos) + canvas->hand.edge.pointerOffset.angle;
@@ -197,6 +199,8 @@ void UpdateDrawFrame() {
         debugEnabled = !debugEnabled;
         Clay_SetDebugModeEnabled(debugEnabled);
     }
+    const bool isShiftPressed = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    const bool isControlPressed = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
     if (IsKeyPressed(KEY_ESCAPE)) {
         auto hand = &data->rendererData.hand;
         switch (data->rendererData.mode) {
@@ -220,6 +224,12 @@ void UpdateDrawFrame() {
             default:
                 break;
         }
+    }
+    if (isControlPressed && IsKeyPressed(KEY_Z)) {
+        if (isShiftPressed)
+            CommandRedo(&data->rendererData.stickfigure);
+        else
+            CommandUndo(&data->rendererData.stickfigure);
     }
     //----------------------------------------------------------------------------------
     // Handle scroll containers
@@ -257,7 +267,7 @@ void UpdateDrawFrame() {
 
 bool reinitializeClay = false;
 
-void HandleClayErrors(Clay_ErrorData errorData) {
+void HandleClayErrors(const Clay_ErrorData errorData) {
     printf("%s", errorData.errorText.chars);
     switch (errorData.errorType) {
     case CLAY_ERROR_TYPE_ELEMENTS_CAPACITY_EXCEEDED:
@@ -274,13 +284,13 @@ void HandleClayErrors(Clay_ErrorData errorData) {
 }
 
 void InitClay() {
-    uint64_t totalMemorySize = Clay_MinMemorySize();
-    Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(
+    const uint64_t totalMemorySize = Clay_MinMemorySize();
+    const Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(
         totalMemorySize, malloc(totalMemorySize));
     Clay_Initialize(
         clayMemory,
         (Clay_Dimensions){(float)GetScreenWidth(), (float)GetScreenHeight()},
-        (Clay_ErrorHandler){HandleClayErrors, 0});
+        (Clay_ErrorHandler){HandleClayErrors, nullptr});
     reinitializeClay = false;
 }
 

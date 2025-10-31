@@ -6,7 +6,6 @@
 struct StickfigureEdge {
   unsigned from;
   unsigned to;
-  StickfigurePartType type;
   PivotEdgeData data;
 };
 
@@ -26,5 +25,7 @@ struct Stickfigure {
 };
 
 DEFINE_IMPLEMENTATION_ARRAY_TYPE(Stickfigure)
+
+Stickfigure* PivotInsertFigure(Stickfigure_array_t* array, const Stickfigure* figure, unsigned zindex);
 
 #endif // STICKFIGUREANIMATOR_PIVOT_IMPL_H

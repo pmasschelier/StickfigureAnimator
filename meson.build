@@ -21,11 +21,12 @@ raylib_dep = raylib_subproject.dependency('raylib')
 m = cc.find_library('m')
 glew = dependency('glew')
 opengl = dependency('opengl')
+cutils = dependency('cutils')
 
 subdir('src')
 executable('StickfigureAnimator',
            sources,
            include_directories: ['src', 'externals'],
            c_args: ['-DRESOURCE_PATH="' + meson.current_source_dir() / '"'],
-           dependencies: [m, raylib_dep, glew, opengl],
+           dependencies: [m, raylib_dep, glew, opengl, cutils],
            install : true)
