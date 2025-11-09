@@ -1,7 +1,7 @@
 #ifndef COMPONENTS_UTILS_H
 #define COMPONENTS_UTILS_H
 
-#include <cutils/arena.h>
+#include <cutils/allocator/arena.h>
 #include "callback.h"
 #include "clay/clay.h"
 #include <assert.h>

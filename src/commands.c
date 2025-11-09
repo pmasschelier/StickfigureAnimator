@@ -2,7 +2,7 @@
 
 #include "clay/clay.h"
 
-#include <cutils/arena.h>
+#include <cutils/allocator/arena.h>
 #include <pivot_impl.h>
 
 arena_allocator_t arena;

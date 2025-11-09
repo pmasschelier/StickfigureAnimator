@@ -3,8 +3,6 @@
 
 #include "raylib.h"
 #include <cutils/array.h>
-
-#include <cutils/arena.h>
 #include <stddef.h>
 
 typedef enum : unsigned char {

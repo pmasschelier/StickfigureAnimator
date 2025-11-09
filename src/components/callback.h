@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
-#include <cutils/arena.h>
+#include <cutils/allocator/arena.h>
 #include "clay/clay.h"
 
 typedef void (*CallbackFn)(void*);

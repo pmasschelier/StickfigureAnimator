@@ -1,5 +1,4 @@
 #include "interface.h"
-#include <cutils/arena.h>
 #include "components/callback.h"
 #include "components/components.h"
 #include "components/utils.h"
