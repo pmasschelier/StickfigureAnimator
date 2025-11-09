@@ -33,13 +33,11 @@ typedef struct {
     unsigned figure;
     PivotEdgeIndex edge;
     PolarCoords previous, next;
-    bool inversed;
 } CommandMoveEdgeData;
 
 typedef struct {
     unsigned figure;
     PivotEdgeIndex edge;
-    bool inversed;
     PivotEdgeData *serialized;
 } CommandChangeStickData;
 
@@ -47,7 +45,6 @@ typedef struct {
     unsigned figure;
     Vector2 previous;
     Vector2 next;
-    bool inversed;
 } CommandSetPositionData;
 
 typedef struct {
@@ -92,10 +89,10 @@ static bool CommandRunAddEdge(Stickfigure* figure, CommandCreateStickData* cmdDa
     if (created) *created = edge;
     return true;
 }
-static bool CommandRunMoveEdge(Stickfigure* figure, CommandMoveEdgeData* cmdData) {
+static bool CommandRunMoveEdge(Stickfigure* figure, const CommandMoveEdgeData* cmdData, bool inversed) {
     StickfigureEdge* edge = PivotFindEdge(figure, cmdData->edge);
     if (!edge) return false;
-    PolarCoords coord = cmdData->inversed ? cmdData->previous : cmdData->next;
+    PolarCoords coord = inversed ? cmdData->previous : cmdData->next;
     PivotMoveEdge(figure, edge, coord.angle, coord.length);
     return true;
 }
@@ -105,28 +102,33 @@ static bool CommandRunChangeEdgeData(Stickfigure* figure, const CommandChangeSti
     // *PivotGetEdgeData(e) = cmdData->serialized[cmdData->inversed];
 }
 
-static bool CommandRunSetPosition(Stickfigure* figure, const CommandSetPositionData* cmdData) {
-    const Vector2 position = cmdData->inversed ? cmdData->previous : cmdData->next;
+static bool CommandRunSetPosition(Stickfigure* figure, const CommandSetPositionData* cmdData, const bool inversed) {
+    const Vector2 position = inversed ? cmdData->previous : cmdData->next;
     *PivotStickfigurePosition(figure) = position;
     return true;
 }
 
-bool CommandRun(Stickfigure_array_t* figures, Command* command)  {
+bool CommandRun(Stickfigure_array_t* figures, Command* command,
+                const bool inversed)  {
     Stickfigure* figure;
     switch (command->type) {
     case COMMAND_CREATE_FIGURE:
+        if (inversed)
+            return array_remove_Stickfigure(figures, nullptr, command->deleteFigure.zindex);
         figure = array_insert_Stickfigure(figures, nullptr, command->createFigure.zindex);
         return PivotDeserialize(command->createFigure.serialized, figure);
     case COMMAND_DELETE_FIGURE:
-        return array_remove_Stickfigure(figures, nullptr, command->deleteFigure.zindex);
+        break;
     case COMMAND_CREATE_EDGE:
+        if (inversed)
+            return PivotRemoveLeafEdge(&figures->data[command->removeStick.figure], command->removeStick.edge);
         return CommandRunAddEdge(&figures->data[command->createStick.figure], &command->createStick, command->createStick.serialized, nullptr);
     case COMMAND_REMOVE_EDGE:
-        return PivotRemoveLeafEdge(&figures->data[command->removeStick.figure], command->removeStick.edge);
+        break;
     case COMMAND_MOVE_EDGE:
-        return CommandRunMoveEdge(&figures->data[command->setPosition.figure], &command->moveEdge);
+        return CommandRunMoveEdge(&figures->data[command->setPosition.figure], &command->moveEdge, inversed);
     case COMMAND_SET_POSITION:
-        return CommandRunSetPosition(&figures->data[command->setPosition.figure], &command->setPosition);
+        return CommandRunSetPosition(&figures->data[command->setPosition.figure], &command->setPosition, inversed);
     case COMMAND_CHANGE_EDGE_DATA:
         break;
     case COMMAND_UNKNOWN:
@@ -156,7 +158,7 @@ bool CommandPushCreateFigure(Stickfigure_array_t* figures, const Stickfigure * f
         }
     });
     if (!cmd) return false;
-    return CommandRun(figures, cmd);
+    return CommandRun(figures, cmd, false);
 }
 
 bool CommandPushAddEdge(const Stickfigure_array_t * figures, Stickfigure* figure, const unsigned pivot, const PivotEdgeData data, StickfigureEdge** created) {
@@ -187,7 +189,6 @@ bool CommandPushChangeEdgeData(const Stickfigure_array_t* figures,
         .tmp = false,
         .changeStick = {
             .figure = array_indexof(*figures, figure),
-            .inversed = false,
             .edge = edge,
             .serialized = buffer
         }
@@ -204,13 +205,12 @@ bool CommandPushMoveEdge(const Stickfigure_array_t* figures, Stickfigure * figur
         .moveEdge = {
             .figure = array_indexof(*figures, figure),
             .edge = { .from = edge->from, .to = edge->to },
-            .inversed = false,
             .previous = old,
             .next = {.angle = data->angle, .length = data->length}
         }
     });
     if (!cmd) return false;
-    return CommandRunMoveEdge(figure, &cmd->moveEdge);
+    return CommandRunMoveEdge(figure, &cmd->moveEdge, false);
 }
 
 bool CommandPushSetPosition(const Stickfigure_array_t* figures, Stickfigure* figure, Vector2 previous, Vector2 next) {
@@ -221,67 +221,27 @@ bool CommandPushSetPosition(const Stickfigure_array_t* figures, Stickfigure* fig
             .figure = array_indexof(*figures, figure),
             .previous = previous,
             .next = next,
-            .inversed = false
         }
     });
-    return CommandRunSetPosition(figure, &cmd->setPosition);
-}
-
-Command CommandComputeInverse(const Command* command) {
-    Command ret;
-    switch (command->type) {
-    case COMMAND_CREATE_FIGURE:
-        ret = *command;
-        ret.type = COMMAND_DELETE_FIGURE;
-        break;
-    case COMMAND_DELETE_FIGURE:
-        ret = *command;
-        ret.type = COMMAND_CREATE_FIGURE;
-        break;
-    case COMMAND_CREATE_EDGE:
-        ret = *command;
-        ret.type = COMMAND_REMOVE_EDGE;
-        break;
-    case COMMAND_REMOVE_EDGE:
-        ret = *command;
-        ret.type = COMMAND_CREATE_EDGE;
-        break;
-    case COMMAND_MOVE_EDGE:
-        ret = *command;
-        ret.moveEdge.inversed = !ret.moveEdge.inversed;
-        break;
-    case COMMAND_CHANGE_EDGE_DATA:
-        ret = *command;
-        ret.changeStick.inversed = !ret.changeStick.inversed;
-        break;
-    case COMMAND_SET_POSITION:
-        ret = *command;
-        ret.setPosition.inversed = !ret.setPosition.inversed;
-        break;
-    case COMMAND_UNKNOWN:
-        return (Command) { .type = COMMAND_UNKNOWN };
-    }
-    return ret;
+    return CommandRunSetPosition(figure, &cmd->setPosition, false);
 }
 
 void CommandUndo(Stickfigure_array_t* figures) {
     if (ring_empty(cmd_list) || cmd_index == 0)
         return;
-    Command reverse = CommandComputeInverse(&cmd_list.data[--cmd_index]);
-    CommandRun(figures, &reverse);
+    CommandRun(figures, &cmd_list.data[--cmd_index], true);
     Command* cmd;
     while (cmd_index != 0 && (cmd = ring_get(cmd_list, cmd_index - 1)) != NULL && cmd->tmp) {
-        reverse = CommandComputeInverse(&cmd_list.data[--cmd_index]);
-        CommandRun(figures, &reverse);
+        CommandRun(figures, &cmd_list.data[--cmd_index], true);
     }
 }
 
 void CommandRedo(Stickfigure_array_t* figures) {
     Command* cmd;
     while (cmd_index != cmd_list.length && (cmd = ring_get(cmd_list, cmd_index)) != NULL && cmd->tmp) {
-        CommandRun(figures, &cmd_list.data[cmd_index++]);
+        CommandRun(figures, &cmd_list.data[cmd_index++], false);
     }
     if (cmd_index == cmd_list.length)
         return;
-    CommandRun(figures, &cmd_list.data[cmd_index++]);
+    CommandRun(figures, &cmd_list.data[cmd_index++], false);
 }
