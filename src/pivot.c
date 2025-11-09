@@ -111,7 +111,7 @@ bool PivotDeserialize(const char* buffer, Stickfigure* figure) {
     printf("buffer: %p\n", buffer);
     // Read the edges from buffer
     const unsigned edgeCount = *(unsigned*)buffer;
-    const unsigned edgeSize = jointCount * sizeof(StickfigureEdge);
+    const unsigned edgeSize = edgeCount * sizeof(StickfigureEdge);
     buffer += sizeof(figure->edges.length);
     printf("buffer: %p\n", buffer);
     figure->edges = (StickfigureEdge_array_t){};
@@ -158,7 +158,7 @@ StickfigureEdge* PivotAddStick(Stickfigure* s, unsigned pivot, PivotEdgeData dat
         .to = handleId,
         .data = data,
     };
-    double rootAngle = s->joints.data[pivot].rootAngle;
+    const double rootAngle = s->joints.data[pivot].rootAngle;
     PivotUpdateJointsRec(s, edge, rootAngle);
     return edge;
 }
@@ -175,6 +175,51 @@ void PivotMarkRec(Stickfigure* s, unsigned joint, bool *markedJoints, bool* mark
     }
 }
 
+static void PivotRemoveJoint(Stickfigure* s, const unsigned joint) {
+    array_swap_and_pop_back_StickfigureJoint(&s->joints, joint);
+    foreach(s->edges, e, StickfigureEdge) {
+        assert(e->from != joint);
+        if (e->from > joint) e->from--;
+        assert(e->to != joint);
+        if (e->to > joint) e->to--;
+    }
+}
+
+
+bool PivotRemoveLeafEdge(Stickfigure* s, const PivotEdgeIndex edge) {
+    int edgeId = -1;
+    // Find the edge and check it is a leaf
+    foreach(s->edges, e, StickfigureEdge) {
+        if (e->from == edge.to)
+            return false;
+        if (e->to == edge.to && e->from == edge.from)
+            edgeId = (int)index;
+    }
+    if (edgeId == -1)
+        return false;
+    // Remove the edge
+    array_swap_and_pop_back_StickfigureEdge(&s->edges, edgeId);
+    // Remove the handle from the list of joints
+    PivotRemoveJoint(s, edge.to);
+    return true;
+}
+
+static void PivotFilterJoints(Stickfigure* s, const bool* removeJoint) {
+    array_filter_StickfigureJoint(&s->joints, removeJoint);
+    // Compute new joint ids after removal
+    long* jointIds = alloca(s->joints.length * sizeof(long));
+    unsigned id = 0;
+    for (unsigned i = 0; i < s->joints.length; i++)
+        jointIds[i] = removeJoint[i] ? -1 : id++;
+    // Update joint ids of edges
+    foreach(s->edges, e, StickfigureEdge) {
+        assert(jointIds[e->from] >= 0);
+        e->from = jointIds[e->from];
+        assert(jointIds[e->to] >= 0);
+        e->to = jointIds[e->to];
+    }
+}
+
 void PivotRemoveStick(Stickfigure* s, StickfigureEdge* edge) {
     // Marks the edges and joints from edge for removal
     bool* markedJoints = alloca(s->joints.length * sizeof(bool));
@@ -185,20 +230,8 @@ void PivotRemoveStick(Stickfigure* s, StickfigureEdge* edge) {
     markedEdges[array_indexof(s->edges, edge)] = true;
     PivotMarkRec(s, edge->to, markedJoints, markedEdges);
     // Remove marked joints and edges
-    array_filter_StickfigureJoint(&s->joints, markedJoints);
     array_filter_StickfigureEdge(&s->edges, markedEdges);
-    // Compute new joint ids after removal
-    long* jointIds = alloca(s->joints.length * sizeof(long));
-    unsigned id = 0;
-    for (unsigned i = 0; i < s->joints.length; i++)
-        jointIds[i] = markedJoints[i] ? -1 : id++;
-    // Update joint ids of edges
-    foreach(s->edges, e, StickfigureEdge) {
-        assert(jointIds[e->from] >= 0);
-        e->from = jointIds[e->from];
-        assert(jointIds[e->to] >= 0);
-        e->to = jointIds[e->to];
-    }
+    PivotFilterJoints(s, markedJoints);
 }
 
 StickfigureEdge* PivotFindEdge(Stickfigure* s, PivotEdgeIndex edge) {
@@ -330,23 +363,6 @@ void PivotMoveEdge(Stickfigure* s, StickfigureEdge* edge, double angle, double l
 
 void PivotSelectEdge(StickfigureEdge* edge, bool toggle) {
     edge->data.selected = !toggle || !edge->data.selected;
-}
-
-void PivotRemoveEdge(Stickfigure* s, unsigned int edge) {
-    assert(edge < s->edges.length);
-    StickfigureEdge *e = &s->edges.data[edge];
-    foreach(s->edges, next, StickfigureEdge) {
-        if(next->from == e->to)
-            return;
-    }
-    array_swap_and_pop_back_StickfigureJoint(&s->joints, e->to);
-    array_swap_and_pop_back_StickfigureEdge(&s->edges, edge);
-    foreach(s->edges, edge, StickfigureEdge) {
-        if(edge->from == s->joints.length)
-            edge->from = e->to;
-        if(edge->to == s->joints.length)
-            edge->to = e->to;
-    }
 }
 
 void PivotClearSelection(Stickfigure_array_t stickfigures) {

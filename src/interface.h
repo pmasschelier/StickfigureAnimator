@@ -25,11 +25,6 @@ typedef enum {
 constexpr unsigned MENUBAR_BUTTON_COUNT = 5;
 
 typedef struct {
-    double angle;
-    double length;
-} PolarCoords;
-
-typedef struct {
     enum {
         HAND_EMPTY,
         HAND_HOLDING_STICK,

@@ -60,8 +60,10 @@ void HandleCreateStickfigure(CanvasData* data) {
         .thickness = data->thickness
     };
     Stickfigure* figure = alloca(SizeofStickfigure);
-    if (PivotCreateFigure(figure, nullptr, (Vector2) { pivot.x, pivot.y - 5.f }, edgeData)) {
-        CommandPush(&data->stickfigure, CommandCreateFigure(figure, PivotTopZIndex(data->stickfigure)));
+    char name[STICKFIGURE_NAME_LENGTH];
+    snprintf(name, STICKFIGURE_NAME_LENGTH, "Stickfigure nº%d", data->stickfigure.length);
+    if (PivotCreateFigure(figure, name, (Vector2) { pivot.x, pivot.y - 5.f }, edgeData)) {
+        CommandPushCreateFigure(&data->stickfigure, figure, PivotTopZIndex(data->stickfigure));
         PivotClearFigure(figure);
     }
 }

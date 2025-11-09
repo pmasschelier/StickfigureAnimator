@@ -97,6 +97,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                 if (hoverJoint) {
                     if (joint == 0) {
                         HandTakeStickfigure(canvas, jointFigure, worldPos);
+                        canvas->mode = MOVE_STICKFIGURE;
                     } else {
                         StickfigureEdge* rootEdge = PivotFindRootEdge(jointFigure, joint);
                         HandTakeStick(canvas, jointFigure, rootEdge, worldPos);
@@ -126,6 +127,7 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
             }
             break;
         case CREATE_STICK:
+            CommandPushMoveEdge(&canvas->stickfigure, canvas->hand.edge.figure, canvas->hand.edge.edge, canvas->hand.edge.initial);
             canvas->hand.status = HAND_EMPTY;
             canvas->mode = NORMAL;
             break;
@@ -150,15 +152,27 @@ void CanvasEventHandler(Clay_ElementId elementId, Clay_PointerData pointerInfo,
                     .color = ColorFromHSV(canvas->color->hue, canvas->color->saturation, canvas->color->value),
                     .thickness = canvas->thickness
                 };
-                StickfigureEdge *part = PivotAddStick(jointFigure, joint, edgeData);
+                StickfigureEdge *part;
+                CommandPushAddEdge(&canvas->stickfigure, jointFigure, joint, edgeData, &part);
                 HandTakeStick(canvas, jointFigure, part, worldPos);
                 canvas->mode = CREATE_STICK;
             }
             break;
-        case MOVE_STICK:
         case MOVE_STICKFIGURE:
+            CommandPushSetPosition(
+                &canvas->stickfigure,
+                canvas->hand.figure.figure,
+                canvas->hand.figure.initialStickfigure,
+                *PivotStickfigurePosition(canvas->hand.figure.figure)
+                );
             canvas->hand.status = HAND_EMPTY;
             canvas->mode = NORMAL;
+            break;
+        case MOVE_STICK:
+            CommandPushMoveEdge(&canvas->stickfigure, canvas->hand.edge.figure, canvas->hand.edge.edge, canvas->hand.edge.initial);
+            canvas->hand.status = HAND_EMPTY;
+            canvas->mode = NORMAL;
+            break;
         default:
             break;
         }

@@ -28,4 +28,10 @@ DEFINE_IMPLEMENTATION_ARRAY_TYPE(Stickfigure)
 
 Stickfigure* PivotInsertFigure(Stickfigure_array_t* array, const Stickfigure* figure, unsigned zindex);
 
+void PivotCloneStickfigure(const Stickfigure* figure, Stickfigure* clone);
+
+StickfigureEdge* PivotAddStick(Stickfigure* s, unsigned pivot, PivotEdgeData data);
+
+bool PivotRemoveLeafEdge(Stickfigure* s, PivotEdgeIndex edge);
+
 #endif // STICKFIGUREANIMATOR_PIVOT_IMPL_H

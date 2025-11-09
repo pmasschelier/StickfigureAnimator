@@ -13,6 +13,11 @@ typedef enum : unsigned char {
 } StickfigurePartType;
 
 typedef struct {
+    double angle;
+    double length;
+} PolarCoords;
+
+typedef struct {
     StickfigurePartType type;
     bool selected;
     double angle;
@@ -65,13 +70,30 @@ bool PivotCreateFigure(Stickfigure* figure, const char* name, Vector2 pivot, Piv
  */
 void PivotClearFigure(Stickfigure* figure);
 
+/**
+ * @brief Compute the size needed to serialize a stickfigure
+ * @param figure The figure you want to serialize
+ * @return Size needed to serialize the figure
+ */
 size_t PivotGetSerializedSize(const Stickfigure* figure);
+
+/**
+ * @brief Serialize a figure to a buffer
+ * The buffer should be allocated with at least the size returned
+ * by PivotGetSerializedSize()
+ * @param figure The figure you want to serialize
+ * @param buffer A pointer to the buffer you want to serialize to
+ */
 void PivotSerialize(const Stickfigure* figure, char* buffer);
+
+/**
+ * @brief Read a serialized stickfigure from a buffer
+ * @param buffer The buffer you want to read from
+ * @param figure A pointer to an empty Stickfigure struct
+ * @return true iif the deserialization could be done properly
+ */
 bool PivotDeserialize(const char* buffer, Stickfigure* figure);
 
-void PivotCloneStickfigure(const Stickfigure* figure, Stickfigure* clone);
-
-StickfigureEdge* PivotAddStick(Stickfigure* s, unsigned pivot, PivotEdgeData data);
 void PivotRemoveStick(Stickfigure* s, StickfigureEdge* edge);
 
 StickfigureEdge* PivotFindEdge(Stickfigure* array, PivotEdgeIndex edge);
